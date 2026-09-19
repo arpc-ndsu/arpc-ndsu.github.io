@@ -1,0 +1,7 @@
+# One entry per tool. `name`, `description`, and any of repo / docs / download.
+- name: "arpcEditor"
+  description: "Templates and editorial utilities for ARPC-branded outputs, including the interactive HTML edition of a published report."
+  repo: "https://github.com/arpc-ndsu/arpcEditor"
+- name: "arpcFCIPcogitator"
+  description: "Interactive tools for exploring the Federal Crop Insurance Program."
+  repo: "https://github.com/arpc-ndsu/arpcFCIPcogitator"

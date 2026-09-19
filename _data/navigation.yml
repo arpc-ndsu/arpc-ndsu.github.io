@@ -1,0 +1,9 @@
+main:
+  - title: "Publications"
+    url: /publications/
+  - title: "Software and Tools"
+    url: /software/
+  - title: "Data"
+    url: /data/
+  - title: "arpc-ndsu.com"
+    url: https://www.arpc-ndsu.com/

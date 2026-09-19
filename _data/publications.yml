@@ -1,0 +1,128 @@
+# ==============================================================================
+# The centre's publications.
+# ------------------------------------------------------------------------------
+# One entry per publication. Seeded from the publications sitemap on
+# arpc-ndsu.com, so the list is complete as of 2026-09-19 -- but `type` and
+# `authors` were not in the sitemap and need filling in.
+#
+#   title        as it appears on the publication
+#   authors      surname-first, as a citation would print them
+#   year         the year of issue
+#   type         "ARPC Report" | "ARPC White Paper" | "ARPC Working Paper"
+#                (the three types the AgEconSearch collection defines)
+#   site         the page on arpc-ndsu.com
+#   interactive  the folder under /publications/ holding the interactive
+#                edition, once one has been built. Omit until then -- an entry
+#                without it simply shows no "Read online" link.
+#   pdf          a PDF served from this site, if one is
+#   doi          once AgEconSearch has issued one
+#
+# TYPE IS A PLACEHOLDER ON EVERY ENTRY. They are all marked "ARPC Report"
+# because that is the series the reports themselves cite; correct any that are
+# white or working papers.
+# ==============================================================================
+
+- title: "The Anatomy of Crop Insurance Policies and What U.S. Producers Chose, 2025"
+  year: 2026
+  type: "ARPC Report"
+  site: "https://www.arpc-ndsu.com/publication/the-anatomy-of-crop-insurance-policies-and-what-u.s.producers-chose-2025"
+
+- title: "Crop Insurance Penetration in the United States, 2025"
+  year: 2026
+  type: "ARPC Report"
+  site: "https://www.arpc-ndsu.com/publication/crop-insurance-penetration-in-the-united-states-2025"
+
+- title: "Size and Growth of the United States Crop Insurance Portfolio, 2025"
+  year: 2026
+  type: "ARPC Report"
+  site: "https://www.arpc-ndsu.com/publication/size-and-growth-of-the-united-states-crop-insurance-portfolio-2025"
+
+- title: "A Technical Manual for Stochastic Simulation of Crop Yield, Price, and Policy Outcomes"
+  year: 2026
+  type: "ARPC Report"
+  site: "https://www.arpc-ndsu.com/publication/a-technical-manual-for-stochastic-simulation-of-crop-yield-price-and-policy-outcomes"
+
+- title: "U.S. Dairy Safety Net Programs: History, Program Design, and Recent Performance"
+  year: 2026
+  type: "ARPC Report"
+  site: "https://www.arpc-ndsu.com/publication/u.s.-dairy-safety-net-programs-history-program-design-and-recent-performance"
+
+- title: "Crop Insurance and Nitrogen Reduction Under Elevated Fertilizer Prices"
+  year: 2026
+  type: "ARPC Report"
+  site: "https://www.arpc-ndsu.com/publication/crop-insurance-and-nitrogen-reduction-under-elevated-fertilizer-prices"
+
+- title: "Prevented Planting After Buy-Up Elimination: Coverage Level Substitution, Producer Costs, and the Role of Enhanced Premium Subsidies Under the One Big Beautiful Bill (OBBB)"
+  year: 2026
+  type: "ARPC Report"
+  site: "https://www.arpc-ndsu.com/publication/prevented-planting-after-buy-up-elimination-coverage-level-substitution-producer-costs-and-the-role-of-enhanced-premium-subsidies-under-the-one-big-beautiful-bill-obbb"
+
+- title: "Prevented Planting Buy-Up Elimination and What the Evidence Indicates About Adoption, Actuarial Performance, and Pre-Planting Risk Management Options for Farmers"
+  year: 2026
+  type: "ARPC Report"
+  site: "https://www.arpc-ndsu.com/publication/prevented-planting-buy-up-elimination-and-what-the-evidence-indicates-about-adoption-actuarial-performance-and-pre-planting-risk-management-options-for-farmers"
+
+- title: "Estimated Additional Base Acres Under OBBBA for Crop Year 2026"
+  year: 2026
+  type: "ARPC Report"
+  site: "https://www.arpc-ndsu.com/publication/estimated-additional-base-acres-under-obbba-for-crop-year-2026"
+
+- title: "Use of Feeder Cattle Livestock Risk Protection Insurance in Kansas"
+  year: 2026
+  type: "ARPC Report"
+  site: "https://www.arpc-ndsu.com/publication/use-of-feeder-cattle-livestock-risk-protection-insurance-in-kansas"
+
+- title: "Agricultural Production, Productivity, and Research Investment in North Dakota"
+  year: 2026
+  type: "ARPC Report"
+  site: "https://www.arpc-ndsu.com/publication/agricultural-production-productivity-and-research-investment-in-north-dakota"
+
+- title: "IEEPA Fertilizer Tariffs: Revenue, Relief, and Pass-Through"
+  year: 2026
+  type: "ARPC Report"
+  site: "https://www.arpc-ndsu.com/publication/ieepa-fertilizer-tariffs-revenue-relief-and-pass-through"
+
+- title: "Evolving U.S. Tariffs on Agri-Food Imports and Farm Inputs: From Broad Measures to Targeted Exemptions"
+  year: 2026
+  type: "ARPC Report"
+  site: "https://www.arpc-ndsu.com/publication/evolving-u.s.-tariffs-on-agri-food-imports-and-farm-inputs-from-broad-measures-to-targeted-exemptions"
+
+- title: "Assessing the 2020 U.S.-China Phase One Agreement: Lessons for 2026 Ag Commitments"
+  year: 2026
+  type: "ARPC Report"
+  site: "https://www.arpc-ndsu.com/publication/assessing-the-2020-u.s.-china-phase-one-agreement-lessons-for-2026-ag-commitments"
+
+- title: "A One-Year Retrospective Assessment of China's 2025/26 Retaliatory Tariffs on U.S. Agricultural Exports"
+  year: 2026
+  type: "ARPC Report"
+  site: "https://www.arpc-ndsu.com/publication/a-one-year-retrospective-assessment-of-china%E2%80%99s-202526-retaliatory-tariffs-on-u.s.-agricultural-exports"
+
+- title: "Four Months After the Strait of Hormuz Closure: Fertilizer Market Adjustment and a Revised Outlook"
+  year: 2026
+  type: "ARPC Report"
+  site: "https://www.arpc-ndsu.com/publication/four-months-after-the-strait-of-hormuz-closure-fertilizer-market-adjustment-and-a-revised-outlook"
+
+- title: "Projected Impact of the 2026 Strait of Hormuz Closure on Corn, Soybean, and Wheat Profitability in North Dakota"
+  year: 2026
+  type: "ARPC Report"
+  site: "https://www.arpc-ndsu.com/publication/projected-impact-of-the-2026-strait-of-hormuz-closure-on-corn-soybean-and-wheat-profitability-in-north-dakota"
+
+- title: "Tier-2 Sugar Imports Under IEEPA Section 122 and Outlook With New Section 301 Tariffs"
+  year: 2026
+  type: "ARPC Report"
+  site: "https://www.arpc-ndsu.com/publication/tier-2-sugar-imports-under-ieepa-section-122-and-outlook-with-new-section-301-tariffs"
+
+- title: "Quantifying the Price Effects of Over-Quota Sugar Imports on the U.S. Domestic Market"
+  year: 2026
+  type: "ARPC Report"
+  site: "https://www.arpc-ndsu.com/publication/quantifying-the-price-effects-of-over-quota-sugar-imports-on-the-u.s.-domestic-market"
+
+- title: "California Retail Pork Prices and Consumption Two Years Into the Proposition 12 Implementation"
+  year: 2026
+  type: "ARPC Report"
+  site: "https://www.arpc-ndsu.com/publication/california-retail-pork-prices-and-consumption-two-years-into-the-proposition-12-implementation"
+
+- title: "Updated Evidence on Proposition 12 Impacts on Pork Prices, Wholesale Segmentation, and Consumption"
+  year: 2026
+  type: "ARPC Report"
+  site: "https://www.arpc-ndsu.com/publication/updated-evidence-on-proposition-12-impacts-on-pork-prices-wholesale-segmentation-and-consumption"

@@ -1,0 +1,29 @@
+{% comment %}
+  One renderer for the Software and Data pages. Both are the same shape -- a
+  name, a sentence, and somewhere to go -- so they share a list rather than
+  each growing their own copy of it that drifts.
+{% endcomment %}
+<style>
+.res-item{padding:0.85rem 0;border-bottom:1px solid var(--global-border-color);}
+.res-item:last-child{border-bottom:0;}
+.res-item .n{font-weight:700;}
+.res-item .n code{font-size:0.95em;}
+.res-item .d{color:var(--global-text-color-light);margin:0.15rem 0 0.35rem;}
+.res-links a{font-size:0.85rem;margin-right:0.9rem;white-space:nowrap;}
+.res-empty{color:var(--global-text-color-light);font-style:italic;}
+</style>
+{% if include.items %}
+  {% for it in include.items %}
+<div class="res-item">
+  <div class="n">{{ it.name }}</div>
+  {% if it.description %}<div class="d">{{ it.description }}</div>{% endif %}
+  <div class="res-links">
+    {% if it.repo %}<a href="{{ it.repo }}"><i class="fab fa-github" aria-hidden="true"></i> Source</a>{% endif %}
+    {% if it.docs %}<a href="{{ it.docs }}"><i class="fa-solid fa-book" aria-hidden="true"></i> Documentation</a>{% endif %}
+    {% if it.download %}<a href="{{ it.download }}"><i class="fa-solid fa-download" aria-hidden="true"></i> Download</a>{% endif %}
+  </div>
+</div>
+  {% endfor %}
+{% else %}
+<p class="res-empty">Nothing listed here yet.</p>
+{% endif %}

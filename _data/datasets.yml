@@ -1,0 +1,4 @@
+# One entry per dataset. Same fields as software.yml.
+# - name: "..."
+#   description: "..."
+#   download: "..."

@@ -1,0 +1,19 @@
+{% comment %}
+  The three things the centre publishes. Kept as one include rather than written
+  into the home page, so the same cards can be dropped at the foot of any page
+  that should offer a way onward.
+{% endcomment %}
+<style>
+.explore-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0.75rem;margin:1.25rem 0;}
+@media (max-width:760px){.explore-grid{grid-template-columns:1fr;}}
+.explore-card{display:block;text-decoration:none;border:1px solid var(--global-border-color);border-radius:8px;padding:1rem;color:var(--global-text-color);transition:border-color .15s ease,transform .15s ease;}
+.explore-card:hover{border-color:var(--global-link-color);transform:translateY(-2px);}
+.explore-card i{font-size:1.4rem;color:var(--global-link-color);}
+.explore-card .t{font-weight:700;margin-top:0.5rem;}
+.explore-card .d{font-size:0.85rem;color:var(--global-text-color-light);}
+</style>
+<div class="explore-grid">
+<a class="explore-card" href="{{ '/publications/' | relative_url }}"><i class="fa-solid fa-newspaper" aria-hidden="true"></i><div class="t">Publications</div><div class="d">ARPC reports and briefs, with interactive editions you can read in the browser</div></a>
+<a class="explore-card" href="{{ '/software/' | relative_url }}"><i class="fa-solid fa-cubes" aria-hidden="true"></i><div class="t">Software and Tools</div><div class="d">Open-source R packages for crop-insurance and farm-policy analysis</div></a>
+<a class="explore-card" href="{{ '/data/' | relative_url }}"><i class="fa-solid fa-database" aria-hidden="true"></i><div class="t">Data</div><div class="d">Prepared and synthetic datasets behind the published work</div></a>
+</div>

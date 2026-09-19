@@ -1,0 +1,83 @@
+{% comment %}
+  The publication list, filtered in the browser.
+
+  EVERY ENTRY IS RENDERED INTO THE PAGE and the filters only hide rows. That is
+  the opposite of fetching results as someone types, and deliberately: a crawler
+  -- and a reader with no JavaScript -- gets all twenty-one publications and
+  every link, rather than an empty list and a search box that does nothing.
+{% endcomment %}
+{% assign pubs = site.data.publications %}
+<style>
+.pub-controls{display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center;margin:1rem 0 0.25rem;}
+.pub-controls input,.pub-controls select{font:inherit;padding:0.45rem 0.6rem;border:1px solid var(--global-border-color);border-radius:8px;background:transparent;color:var(--global-text-color);}
+.pub-controls input{flex:1 1 240px;min-width:200px;}
+.pub-count{font-size:0.8rem;color:var(--global-text-color-light);margin:0.35rem 0 0.5rem;}
+.pub-item{padding:0.6rem 0;border-bottom:1px solid var(--global-border-color);line-height:1.55;}
+.pub-item .ti{font-weight:600;}
+.pub-item .me{font-size:0.82rem;color:var(--global-text-color-light);margin-top:0.1rem;}
+.pub-links{margin-top:0.3rem;}
+.pub-links a{font-size:0.85rem;margin-right:0.9rem;white-space:nowrap;}
+.pub-live{font-size:0.7rem;letter-spacing:0.04em;text-transform:uppercase;font-weight:700;color:var(--global-link-color);border:1px solid var(--global-link-color);border-radius:4px;padding:0.05rem 0.35rem;margin-left:0.4rem;vertical-align:0.08em;}
+.pub-empty{color:var(--global-text-color-light);font-style:italic;margin:0.8rem 0;}
+</style>
+
+<div class="pub-controls">
+  <input id="pub-search" type="search" placeholder="Search title or year" aria-label="Search publications">
+  <select id="pub-type" aria-label="Filter by type">
+    <option value="">All types</option>
+    <option value="ARPC Report">ARPC Report</option>
+    <option value="ARPC White Paper">ARPC White Paper</option>
+    <option value="ARPC Working Paper">ARPC Working Paper</option>
+  </select>
+  <select id="pub-year" aria-label="Filter by year">
+    <option value="">All years</option>
+    {% assign years = pubs | map: "year" | uniq | sort | reverse %}
+    {% for y in years %}<option value="{{ y }}">{{ y }}</option>{% endfor %}
+  </select>
+</div>
+<p class="pub-count" id="pub-count">{{ pubs | size }} publications</p>
+
+<div id="pub-list">
+{% for p in pubs %}
+  <div class="pub-item" data-type="{{ p.type }}" data-year="{{ p.year }}"
+       data-hay="{{ p.title | downcase | escape }} {{ p.authors | downcase | escape }} {{ p.year }} {{ p.type | downcase }}">
+    <div class="ti">{{ p.title }}{% if p.interactive %}<span class="pub-live">Interactive</span>{% endif %}</div>
+    <div class="me">{% if p.authors %}{{ p.authors }} &middot; {% endif %}{{ p.year }}{% if p.type %} &middot; {{ p.type }}{% endif %}</div>
+    <div class="pub-links">
+      {% if p.interactive %}<a href="{{ '/publications/' | append: p.interactive | append: '/' | relative_url }}"><i class="fa-solid fa-book-open" aria-hidden="true"></i> Read online</a>{% endif %}
+      {% if p.pdf %}<a href="{{ p.pdf | relative_url }}"><i class="fa-solid fa-file-pdf" aria-hidden="true"></i> PDF</a>{% endif %}
+      {% if p.site %}<a href="{{ p.site }}"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i> Publication page</a>{% endif %}
+      {% if p.doi %}<a href="https://doi.org/{{ p.doi }}"><i class="fa-solid fa-link" aria-hidden="true"></i> DOI</a>{% endif %}
+    </div>
+  </div>
+{% endfor %}
+</div>
+<p class="pub-empty" id="pub-none" hidden>No publications match those filters.</p>
+
+<script>
+(function () {
+  var items = [].slice.call(document.querySelectorAll('#pub-list .pub-item'));
+  var q = document.getElementById('pub-search');
+  var ty = document.getElementById('pub-type');
+  var yr = document.getElementById('pub-year');
+  var count = document.getElementById('pub-count');
+  var none = document.getElementById('pub-none');
+
+  function apply() {
+    var s = q.value.trim().toLowerCase(), t = ty.value, y = yr.value, n = 0;
+    items.forEach(function (it) {
+      var ok = (!s || it.dataset.hay.indexOf(s) > -1) &&
+               (!t || it.dataset.type === t) &&
+               (!y || it.dataset.year === y);
+      it.hidden = !ok;
+      if (ok) n++;
+    });
+    count.textContent = n + (n === 1 ? ' publication' : ' publications');
+    none.hidden = n > 0;
+  }
+  [q, ty, yr].forEach(function (el) {
+    el.addEventListener('input', apply);
+    el.addEventListener('change', apply);
+  });
+})();
+</script>
