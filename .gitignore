@@ -1,8 +1,14 @@
-_site/
-.jekyll-cache/
-.jekyll-metadata
-.sass-cache/
-Gemfile.lock
-vendor/
-.bundle/
+# ANCHORED TO THE REPOSITORY ROOT, every one of them. An unanchored `vendor/`
+# matches a directory of that name at ANY depth -- which quietly excluded
+# `_sass/vendor/font-awesome`, the theme's own Font Awesome SCSS, and the first
+# Pages build failed on `File to import not found: vendor/font-awesome/fontawesome`.
+# The leading slash is what confines each pattern to the top level, where the
+# things actually worth ignoring live.
+/_site/
+/.jekyll-cache/
+/.jekyll-metadata
+/.sass-cache/
+/Gemfile.lock
+/vendor/
+/.bundle/
 .DS_Store

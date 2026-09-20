@@ -1,0 +1,22 @@
+# LINE ENDINGS, SETTLED ONCE. The theme was committed with LF and checked out on
+# Windows as CRLF, so `git status` showed 91 files modified and a diff of 9,851
+# insertions against 9,851 deletions -- every line of the site, changed in no way
+# that matters. Normalising here means the repository stores LF whatever the
+# working copy uses, and the noise stops.
+* text=auto eol=lf
+
+# Never touch these: a "line ending" inside a binary is data.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.woff  binary
+*.woff2 binary
+*.ttf  binary
+*.eot  binary
+*.otf  binary
+
+# A rendered report is one long line of HTML with embedded images; leave it be.
+publications/**/*.html -text
