@@ -150,7 +150,9 @@ table.gt .chip.roll{background:none;border:1px dashed var(--mut)}
 #askDrawer{position:fixed;top:0;right:0;width:392px;max-width:92vw;height:100%;z-index:25;background:var(--card);border-left:1px solid var(--rule);
   box-shadow:-10px 0 30px rgba(20,23,26,.12);transform:translateX(100%);transition:transform .22s ease;display:flex;flex-direction:column}
 #askDrawer.open{transform:none}
-#askDrawer .hd{display:flex;align-items:baseline;gap:10px;padding:15px 18px 11px;border-bottom:1px solid var(--rule2)}
+#askDrawer .hd{display:flex;align-items:baseline;gap:10px;padding:15px 18px 11px;border-bottom:1px solid var(--rule2);flex-wrap:nowrap}
+#askDrawer h2{white-space:nowrap}
+#askDrawer .hd .sub{display:none}
 #askDrawer h2{font:600 17px var(--serif);margin:0}
 #askDrawer .sub{font:9.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--mut)}
 #askDrawer .x{margin-left:auto;border:none;background:none;font-size:20px;line-height:1;cursor:pointer;color:var(--mut)}
@@ -223,6 +225,27 @@ svg text{font-family:var(--sans)}
 .cavlink:hover{border-bottom-style:solid}
 body.ask-open .caveats{grid-column:2}
 @media (max-width:1250px){.caveats{grid-column:1/-1}}
+
+/* AI-assisted Ask: off until the reader connects a key */
+.aibtn{margin-left:auto;white-space:nowrap;flex:none;font:600 9.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--mut);background:none;border:1px solid var(--rule);border-radius:999px;padding:3px 9px;cursor:pointer}
+.aibtn.on{color:#fff;background:var(--etch);border-color:var(--etch)}
+#askDrawer .hd .x{margin-left:8px}
+#aiPanel{padding:12px 18px 10px;border-bottom:1px solid var(--rule2);background:var(--stage);font-size:12.5px;line-height:1.5}
+#aiPanel h3{font:600 13px var(--serif);margin:0 0 6px}
+#aiPanel p{margin:0 0 8px;color:var(--ink2)}
+#aiPanel p b{color:var(--ink)}
+#aiPanel .mut{color:var(--mut)}
+#aiPanel .small{font-size:11px}
+#aiPanel label{display:block;margin:0 0 8px;font-size:12.5px}
+#aiPanel label.sw{display:flex;gap:7px;align-items:center}
+#aiPanel input[type=password],#aiPanel select{display:block;width:100%;margin-top:3px;font:13px var(--mono);padding:5px 8px;border:1px solid var(--rule);border-radius:2px;background:#fff}
+#aiPanel select{font-family:var(--sans)}
+#aiPanel .row{display:flex;gap:8px;margin:10px 0 8px}
+#aiPanel .pillbtn{padding:5px 12px;font-size:12px}
+.aibadge{display:inline-block;font:600 9px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--etch);border:1px solid var(--etch-soft);border-radius:3px;padding:0 5px;vertical-align:1px}
+.ainote{font-size:11.5px;color:var(--mut)}
+.src.qry{white-space:pre-wrap;word-break:break-all}
+.turn.pending .mut{color:var(--mut)}
 
 </style></head><body>
 <!-- shell.html -- authored markup. build.py wraps it with the CSS, the generated
@@ -850,45 +873,1060 @@ function buildDownload() {
 }
 
 
-/* ask.js -- Ask the Explorer: answers computed from the data, with what each was computed from
-   Authored. Concatenated by build.py into one closure, in the order its CODE list gives. */
-/* ---------------------------------------------------------------- Ask
-   Answers from the data alone: find a place, a year and a layer in the
-   question, compute, and say what the number was computed from. */
-const LAYER_WORDS = [[/protect/i, "prot"], [/\bsco\b/i, 1], [/hip/i, 2], [/pace/i, 3], [/fip|smoke/i, 4], [/tier ?1|tier one/i, 5], [/\beco\b/i, 6], [/\bmco\b/i, 7],
-  [/tier ?2|tier two/i, 8], [/deductible/i, 9], [/uninsured/i, 10], [/\bgaps?\b/i, "gaps"], [/basic/i, 0]];
-function answer(q) {
-  const yr = +(q.match(/\b(19|20)\d{2}\b/) || [S.year])[0];
-  const i = yi(yr); if (i < 0) return {a: `I only have ${YEARS[0]}–${YEARS[NY-1]}.`, src: ""};
-  let layer = "prot"; for (const [re, k] of LAYER_WORDS) if (re.test(q)) { layer = k; break; }
-  const lname = layer === "prot" ? "protected" : layer === "gaps" ? "coverage gaps" : LONG[layer];
-  const ks = layer === "prot" ? [...PROT] : layer === "gaps" ? [5, 8] : [layer];
-  const val = c => { const g = BYCODE[c]; if (!g) return NaN; const r = g.v[i], t = sum(r); return t > 0 ? sum(ks.map(k => r[k])) / t : NaN; };
-  const dol = c => sum(ks.map(k => BYCODE[c].v[i][k])) * 1e3;
-  if (/highest|most|largest|top|lowest|least|smallest|rank/i.test(q)) {
-    const low = /lowest|least|smallest/i.test(q), r = STATES.map(g => [g, val(g.c)]).filter(x => isFinite(x[1])).sort((a, b) => low ? a[1] - b[1] : b[1] - a[1]).slice(0, 5);
-    return {a: `${low ? "Lowest" : "Highest"} ${lname} share of crop production value, ${yr}: ` + r.map(([g, v], j) => `${j + 1}. <b>${esc(g.n)}</b> ${pct(v, 1)}`).join(" · "), src: `${STATES.length} states, ${yr}`}; }
-  const st = STATES.find(g => new RegExp(`\\b${g.n}\\b`, "i").test(q)) || (/united states|national|\bu\.?s\.?\b|nation/i.test(q) ? BYCODE[0] : null);
-  const sel = st ? {codes: [st.c], title: st.n} : selection();
-  const tot = c => sum(BYCODE[c].v[i]) * 1e3;
-  const T = sum(sel.codes.map(tot)), V = sum(sel.codes.map(dol));
-  if (/grow|change|since|average|trend/i.test(q) && i > 0) {
-    const prevT = sel.codes.reduce((s, c) => s + sum(ks.map(k => BYCODE[c].v[i-1][k])) * 1e3, 0);
-    return {a: `${esc(sel.title)}, ${lname}: <span class="big">${money(V)}</span> in ${yr}, ${V >= prevT ? "up" : "down"} ${pct(Math.abs(V / prevT - 1), 1)} on ${yr - 1}.`, src: `${sel.codes.length} geography, ${yr - 1}–${yr}`}; }
-  return {a: `${esc(sel.title)}, ${yr}: <span class="big">${pct(V / T, 1)}</span> of crop production value is ${layer === "prot" ? "protected" : "in " + esc(lname)} — ${money(V)} of ${money(T)}.`, src: `${esc(sel.title)}, ${yr}: RMA liability over ERS crop production value`};
+/* ask-parse.js -- Ask the Explorer: question -> query (see ASK_CONTRACT.md)
+   Authored. Concatenated by build.py into one closure, in the order its CODE list gives.
+   Declares ASK_SYNONYMS, askNormalize and askParse only. Helpers live inside askParse and the
+   lexicon they derive is cached on the function, so no other name escapes into the closure.
+   Pure: no DOM, no network, no numbers computed; S is read for S.year only. */
+/* ---------------------------------------------------------------- synonyms
+   The ONE table. Every phrase is normalised with askNormalize before use, so write them
+   as a reader would. Region names come from SCHEMES at load; `regions` holds only the
+   informal variants. State names come from STATES; `states` holds variants and the USPS
+   codes that are safe in lower case (not English words). `usps` is case-sensitive, used
+   on the raw question before it is lowercased ("IA", "N.D.", "DC"). */
+const ASK_SYNONYMS = {
+  nation: ["united states", "united states of america", "usa", "u s", "america", "american", "nation", "national", "nationally",
+    "nationwide", "the country", "country", "countrywide", "whole country", "entire country", "federal", "all states combined",
+    "the whole us", "us total", "us wide"],
+  usps: {AL:"Alabama", AK:"Alaska", AZ:"Arizona", AR:"Arkansas", CA:"California", CO:"Colorado", CT:"Connecticut", DE:"Delaware",
+    DC:"District of Columbia", FL:"Florida", GA:"Georgia", HI:"Hawaii", ID:"Idaho", IL:"Illinois", IN:"Indiana", IA:"Iowa", KS:"Kansas",
+    KY:"Kentucky", LA:"Louisiana", ME:"Maine", MD:"Maryland", MA:"Massachusetts", MI:"Michigan", MN:"Minnesota", MS:"Mississippi",
+    MO:"Missouri", MT:"Montana", NE:"Nebraska", NV:"Nevada", NH:"New Hampshire", NJ:"New Jersey", NM:"New Mexico", NY:"New York",
+    NC:"North Carolina", ND:"North Dakota", OH:"Ohio", OK:"Oklahoma", OR:"Oregon", PA:"Pennsylvania", RI:"Rhode Island",
+    SC:"South Carolina", SD:"South Dakota", TN:"Tennessee", TX:"Texas", UT:"Utah", VT:"Vermont", VA:"Virginia", WA:"Washington",
+    WV:"West Virginia", WI:"Wisconsin", WY:"Wyoming"},
+  states: {
+    "n dakota":"North Dakota", "no dakota":"North Dakota", "north dak":"North Dakota", "s dakota":"South Dakota", "so dakota":"South Dakota",
+    "south dak":"South Dakota", "n carolina":"North Carolina", "s carolina":"South Carolina", "w virginia":"West Virginia",
+    "west va":"West Virginia", "washington state":"Washington", "state of washington":"Washington", "new york state":"New York",
+    "washington dc":"District of Columbia", "washington d c":"District of Columbia", "washington district of columbia":"District of Columbia",
+    "the district":"District of Columbia", "dakotas":["North Dakota","South Dakota"], "both dakotas":["North Dakota","South Dakota"],
+    "carolinas":["North Carolina","South Carolina"], "virginias":["Virginia","West Virginia"],
+    "calif":"California", "cali":"California", "penn":"Pennsylvania", "conn":"Connecticut", "tenn":"Tennessee", "wisc":"Wisconsin",
+    "minn":"Minnesota", "nebr":"Nebraska", "okla":"Oklahoma", "oreg":"Oregon", "ariz":"Arizona", "ark":"Arkansas", "colo":"Colorado",
+    "fla":"Florida", "kans":"Kansas", "mich":"Michigan", "mont":"Montana", "nev":"Nevada", "tex":"Texas", "wyo":"Wyoming",
+    "kansas city":"Kansas",
+    "ia":"Iowa", "ks":"Kansas", "ne":"Nebraska", "nd":"North Dakota", "sd":"South Dakota", "mn":"Minnesota", "wi":"Wisconsin",
+    "il":"Illinois", "ky":"Kentucky", "tn":"Tennessee", "tx":"Texas", "nc":"North Carolina", "sc":"South Carolina", "nj":"New Jersey",
+    "ny":"New York", "nv":"Nevada", "nm":"New Mexico", "nh":"New Hampshire", "ri":"Rhode Island", "vt":"Vermont", "wv":"West Virginia",
+    "wy":"Wyoming", "az":"Arizona", "ak":"Alaska", "fl":"Florida", "ga":"Georgia", "ct":"Connecticut", "ut":"Utah", "mt":"Montana",
+    "md":"Maryland", "va":"Virginia", "dc":"District of Columbia"},
+  weak: ["kansas city"],                       // a place read only when nothing better is in the question
+  regions: {"midwest":"Census Midwest", "the midwest":"Census Midwest", "the south":"Census South", "the west":"Census West",
+    "mid atlantic":"Middle Atlantic", "midatlantic":"Middle Atlantic", "appalachia":"Appalachian", "delta":"Delta States",
+    "the delta":"Delta States", "cornbelt":"Corn Belt", "corn belt states":"Corn Belt", "new england states":"New England",
+    "mountain states":"Mountain", "mountain west":"Mountain", "pacific states":"Pacific", "pacific coast":"Pacific", "west coast":"Pacific",
+    "lake states region":"Lake States", "great lakes":"Lake States", "the northeast":"Northeast", "the southeast":"Southeast",
+    "billings":"RMA Billings", "topeka":"RMA Topeka", "spokane":"RMA Spokane", "st paul":"RMA St. Paul", "saint paul":"RMA St. Paul",
+    "valdosta":"RMA Valdosta", "raleigh":"RMA Raleigh", "jackson":"RMA Jackson", "davis":"RMA Davis", "springfield":"RMA Springfield",
+    "oklahoma city":"RMA Oklahoma City", "rma office":"RMA Billings"},
+  here: ["here", "this state", "these states", "this region", "this selection", "current selection", "the selection", "selected states",
+    "the selected states", "this place", "same place", "current state", "currently selected", "my selection", "on the page", "this page",
+    "the page", "what i have selected", "the current view", "this view"],
+  bands: {
+    // no band phrase ends in share/value/dollars: those words carry the metric and must stay visible
+    // and none ends in "coverage" alone, so "coverage gap" is never split by "has coverage"
+    prot: ["protected", "protection", "protect", "protects", "insured", "covered", "penetration", "insurance coverage",
+      "coverage in place", "total protected", "all protected", "protected by crop insurance"],
+    supp: ["supplemental", "supplementals", "supplemental coverage", "supplemental policies", "supplemental products", "buy up", "buy ups",
+      "buyup", "endorsement", "endorsements", "add on", "add ons", "area based endorsements", "supplemental endorsements", "supplementary"],
+    gaps: ["gap", "gaps", "coverage gap", "coverage gaps", "the gap", "the gaps", "unbought", "unbought coverage", "insurable but not bought",
+      "insurable but unbought", "not bought", "left on the table", "available but not bought", "both gaps", "all gaps", "total gap",
+      "basic deductible coverage gap", "deductible coverage gap", "deductible gaps"],
+    unp: ["unprotected", "not protected", "uncovered", "not covered", "without protection", "no protection", "exposed", "left unprotected"],
+    tot: ["crop production value", "crop value", "production value", "total crop value", "total value", "value of production",
+      "value of crop production", "total", "the total", "all layers", "all bands", "whole stack", "everything", "entire value",
+      "total crop production", "crop production", "all of it"],
+    0: ["basic", "basic coverage", "basic policy", "basic policies", "underlying", "underlying policy", "underlying policies", "underlying coverage",
+      "aph", "yp", "rp", "revenue protection", "yield protection", "actual production history", "base policy", "base coverage",
+      "mpci", "multi peril", "multiperil", "individual coverage", "the policy itself", "core coverage"],
+    1: ["sco", "supplemental coverage option", "s c o"],
+    2: ["hip wi", "hip", "hipwi", "hurricane", "hurricanes", "wind", "wind index", "hurricane insurance protection",
+      "hurricane insurance protection wind index", "hurricane protection"],
+    3: ["pace", "post application", "post application coverage endorsement", "post application coverage", "p a c e"],
+    4: ["fip si", "fip", "fipsi", "fire", "smoke", "smoke index", "fire insurance protection", "fire insurance protection smoke index",
+      "fire protection", "wildfire smoke"],
+    5: ["tier 1 gap", "tier one gap", "tier 1", "tier one", "tier 1 coverage gap", "tier one coverage gap", "first tier gap", "first tier",
+      "lower tier gap", "lower gap", "gap below 86", "gap below 86 percent", "coverage gap below 86 percent", "below 86 percent",
+      "tier 1 basic deductible coverage gap", "tier i gap", "tier i", "t1 gap", "t1"],
+    6: ["eco", "enhanced coverage option", "e c o"],
+    7: ["mco", "margin coverage option", "margin", "margin coverage", "m c o"],
+    8: ["tier 2 gap", "tier two gap", "tier 2", "tier two", "tier 2 coverage gap", "tier two coverage gap", "second tier gap", "second tier",
+      "upper tier gap", "upper gap", "gap above 86", "gap above 86 percent", "tier 2 basic deductible coverage gap", "tier ii gap", "tier ii",
+      "t2 gap", "t2"],
+    9: ["deductible", "deductibles", "the deductible", "unprotected deductible", "uninsured deductible", "basic deductible",
+      "uninsured basic deductible", "uninsured basic coverage deductible", "unprotected deductibles", "uninsured deductibles",
+      "uninsured part of the deductible", "deductible not covered", "retained deductible"],
+    10: ["uninsured", "uninsured production", "no policy", "not participating", "non participating", "nonparticipating", "not insured",
+      "without insurance", "without a policy", "outside the program", "unenrolled", "not enrolled", "uninsured crops", "uninsured acres",
+      "no insurance", "never insured", "non participants", "nonparticipants"]
+  },
+  // intents: question phrases. Metric nouns live in `metric` and imply share/value on their own, so no phrase
+  // here may contain one ("what percent" is "what" + the noun "percent", which sets both intent and metric).
+  intents: {
+    share: ["how much", "how much of", "what part", "how big a part", "how much is", "how much was", "how much are", "how much were"],
+    value: ["how much money", "how many dollars", "how much liability", "how much value", "how much in dollars", "how many billion",
+      "how many million"],
+    rank: ["rank", "ranking", "rankings", "ranked", "which states", "which state", "what states", "what state", "top states",
+      "bottom states", "leaderboard", "league table", "list the states", "list states", "order the states", "sort the states",
+      "rank the states", "rank states", "which ones", "who leads", "who lags", "state ranking", "how many states", "what number of states"],
+    compare: ["vs", "versus", "v", "compared to", "compared with", "compared against", "compare to", "compare with", "compare", "comparing",
+      "comparison", "against", "relative to", "difference between", "differ", "differs", "side by side", "stack up", "stacks up", "contrast",
+      "in comparison", "how does", "how do", "as opposed to", "or"],
+    // no "how has" here: "how has X changed" is growth, "how has X trended" is trend, and the verb decides
+    trend: ["trend", "trends", "trended", "trending", "over time", "history", "historical", "historically", "evolution", "evolved", "evolve",
+      "over the years", "through the years", "across the years", "across years", "year by year", "time series", "trajectory",
+      "development", "over the period", "across the period", "progression"],
+    growth: ["grow", "grew", "grown", "growth", "growing", "change", "changed", "changes", "changing", "rose", "rise", "risen",
+      "rising", "fell", "fall", "fallen", "falling", "up", "down", "increase", "increased", "increasing", "decrease", "decreased",
+      "decreasing", "decline", "declined", "declining", "drop", "dropped", "dropping", "gain", "gained", "gains", "shrink", "shrank",
+      "shrunk", "expand", "expanded", "expansion", "momentum", "year over year", "yoy", "from last year", "on last year",
+      "versus last year", "vs last year", "compared to last year", "compared with last year", "relative to last year", "on the year",
+      "jump", "jumped", "surge", "surged", "slip", "slipped", "improve", "improved", "worsen", "worsened", "how did", "what happened to",
+      "difference from last year", "year on year", "annual change", "since then", "since"],
+    define: ["define", "definition", "definition of", "definition for", "explain", "explanation", "meaning", "meaning of", "what does",
+      "mean", "means", "meant", "what do you mean", "what is meant by", "describe", "tell me what", "help me understand",
+      "what counts as", "what qualifies as"],
+    whatis: ["what is", "what are", "whats", "what was", "what were"],   // define only when nothing else (place, year, metric) is named
+    show: ["show", "show me", "go to", "open", "map", "map it", "on the map", "display", "select", "switch to", "take me to", "jump to",
+      "navigate to", "navigate", "plot", "draw", "zoom", "zoom to", "highlight", "pull up", "bring up", "focus on", "set the year to",
+      "set year", "set the state to", "view", "look at", "let me see", "switch", "point me to", "move to"]
+  },
+  order: {top: ["highest", "most", "largest", "biggest", "greatest", "top", "best", "leading", "maximum", "max", "strongest", "heaviest",
+      "widest", "deepest"],
+    bottom: ["lowest", "least", "smallest", "fewest", "bottom", "worst", "minimum", "min", "weakest", "lightest", "narrowest",
+      "shallowest", "last place"]},
+  metric: {share: ["share", "shares", "percent", "percentage", "percentages", "pct", "proportion", "fraction", "portion", "ratio",
+      "in percent", "as a share", "as a percentage", "as a percent", "rate", "rates", "in percentage terms", "in relative terms"],
+    dollars: ["dollar", "dollars", "money", "billion", "billions", "million", "millions", "bn", "value", "liability", "liabilities",
+      "amount", "amounts", "worth", "in dollars", "dollar terms", "nominal", "how many dollars", "sum insured", "insured amount"]},
+  years: {
+    this: ["this year", "now", "currently", "today", "latest", "most recent", "the latest year", "most recent year", "current year",
+      "right now", "at present", "present", "the current year", "as of now", "lately", "these days", "nowadays"],
+    last: ["last year", "previous year", "the year before", "a year ago", "prior year", "the previous year", "one year ago",
+      "the year before that"],
+    all: ["all years", "every year", "all time", "whole period", "entire period", "full history", "the whole record", "entire record",
+      "since the start", "since the beginning", "from the start", "from the beginning", "whole series", "entire series", "all the years",
+      "the full period", "the whole time", "ever since"],
+    decade: ["past decade", "last decade", "the decade", "over the decade", "previous decade", "past ten years", "last ten years",
+      "the last decade", "the past decade", "over the last decade", "over the past decade", "in the last decade", "in the past decade"],
+    window: ["last", "past", "previous", "preceding", "recent", "prior", "latest"],   // (window) N years
+    unit: ["year", "years", "yr", "yrs", "seasons", "crop years"],
+    ago: ["ago", "back", "earlier", "before now", "prior"],
+    to: ["to", "through", "thru", "till", "until", "and", "vs", "versus", "v"],       // A to B
+    from: ["between", "from"],                                                        // from A to B
+    since: ["since", "from", "after", "starting", "beginning", "post"],               // since A
+    until: ["until", "till", "through", "thru", "before", "pre", "ending"]            // until B
+  },
+  numbers: {one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10, eleven:11, twelve:12, thirteen:13,
+    fourteen:14, fifteen:15, sixteen:16, seventeen:17, eighteen:18, nineteen:19, twenty:20, dozen:12, couple:2, few:3, several:5},
+  // words a question may carry that place nothing: not reported as unmatched
+  stop: ["the", "a", "an", "of", "in", "on", "at", "for", "to", "by", "with", "and", "or", "is", "are", "was", "were", "be", "been", "being",
+    "am", "do", "does", "did", "done", "has", "have", "had", "having", "how", "what", "which", "who", "whom", "whose", "when", "where", "why",
+    "it", "its", "this", "that", "these", "those", "there", "their", "they", "them", "we", "us", "our", "ours", "you", "your", "yours", "i", "me",
+    "my", "mine", "he", "she", "his", "her", "about", "as", "from", "into", "onto", "over", "under", "within", "out", "off", "per", "via", "than",
+    "then", "so", "if", "but", "not", "no", "yes", "please", "kindly", "can", "could", "would", "should", "will", "shall", "may", "might",
+    "tell", "give", "know", "want", "need", "like", "see", "find", "get", "let", "ok", "okay", "hey", "hello", "thanks", "thank", "cheers",
+    "calculate", "compute", "estimate", "report", "summarize", "summarise", "list", "pull", "fetch", "return", "print", "provide", "check",
+    "work out", "figure out", "run", "query", "ask", "asking", "wondering", "tell me", "show me", "let me know", "i d like", "i would like",
+    "crop", "crops", "coverage", "production", "insurance", "farm", "farms", "farmer", "farmers", "agricultural", "agriculture", "ag",
+    "program", "programs", "fcip", "rma", "usda", "ers", "policy", "policies", "acres", "acre", "planted", "year", "years", "yr", "yrs",
+    "season", "seasons", "state", "states", "region", "regions", "area", "areas", "level", "geography", "geographies", "place", "places",
+    "across", "among", "amongst", "between", "all", "each", "every", "any", "some", "both", "just", "only", "also", "too", "very", "really",
+    "much", "many", "more", "less", "same", "other", "others", "again", "still", "yet", "ever", "never", "always", "often", "usually",
+    "generally", "roughly", "approximately", "around", "nearly", "almost", "exactly", "actually", "basically", "overall", "whole",
+    "entire", "full", "part", "parts", "kind", "kinds", "type", "types", "way", "thing", "things", "stuff", "something", "anything",
+    "nothing", "etc", "e", "g", "ie", "eg", "s", "t", "d", "re", "ve", "ll", "m", "got", "gotten", "quick", "quickly", "briefly",
+    "simple", "simply", "precisely", "right", "well", "hmm", "um", "uh", "yeah", "yep", "nope", "sure", "maybe", "perhaps", "probably",
+    "possibly", "terms", "term", "basis", "respect", "regard", "regarding", "concerning", "according", "based", "using", "use", "used",
+    "given", "include", "including", "included", "exclude", "excluding", "except", "without", "during", "data", "number", "numbers",
+    "figure", "figures", "stats", "statistics", "info", "information", "question", "answer", "explorer", "page", "tab", "panel", "chart",
+    "table", "graph", "lot", "lots", "bit", "little", "big", "large", "small", "high", "low", "higher", "lower", "larger", "smaller",
+    "good", "bad", "new", "old", "current", "please", "quite", "rather", "pretty", "fairly", "either", "neither", "whether", "while",
+    "though", "although", "because", "due", "thus", "hence", "therefore", "instead", "rather", "else", "otherwise", "anyway", "say",
+    "said", "think", "thought", "guess", "wonder", "wondering", "curious", "interested", "mind", "help", "idea", "sense", "seems",
+    "seem", "look", "looks", "looking", "going", "gonna", "wanna", "put", "take", "make", "made", "come", "came", "goes", "went", "gone",
+    "far", "long", "short", "ones", "last", "next", "past", "previous", "recent", "ago", "before", "after", "earlier", "later",
+    "prior", "preceding", "bout", "how bout", "what bout", "and how about", "and what about", "what about", "how about", "same for", "and for", "and in", "and then",
+    "as well", "as well as", "up to", "out of", "state of", "as of", "in terms of", "break down", "breakdown", "crop insurance",
+    "federal crop insurance", "federal crop insurance program", "crop year", "the year", "in the year", "for the year", "by the way",
+    "in total", "at all", "of course", "sort of", "kind of", "a lot", "a bit", "as a whole", "in general", "to me", "for me", "to date",
+    "so far", "the number", "the numbers", "the data", "the figure", "the figures", "across the board", "break it down", "a state",
+    "the state", "the states", "a region", "the region", "crop producers", "producers", "growers", "grower"],
+  // things a reader may ask to have defined that are not bands; a define question whose term is neither
+  // a band phrase nor one of these is off-topic, and comes back unknown
+  terms: ["projected", "projection", "projected denominator", "projected value", "denominator", "insured above crop value",
+    "insured above value", "above crop value", "overshoot", "clamped", "86 percent line", "86 percent", "86 line", "the line",
+    "liability", "rma liability", "crop production value", "ers", "rma", "coverage", "coverage level", "tier", "tiers", "band", "bands",
+    "layer", "layers", "stack", "share", "percent", "dollars", "unit", "units", "basic", "supplemental", "gap", "focus year", "window",
+    "crop year", "reference tables", "vintage", "release", "farm production region", "census region", "census division",
+    "rma regional office", "region", "scheme", "explorer", "ask", "reading rail", "caveat", "projected year"]
+};
+
+/* ---------------------------------------------------------------- normalise
+   Lower case; contractions opened ("what's" -> "what is", "didn't" -> "did not"); possessives
+   dropped ("Iowa's" -> "iowa"); "$" and "%" kept as words because they carry the metric;
+   every other non-alphanumeric run becomes one space. Hyphens and dashes become spaces, so
+   "2015-2024" and "2015–2024" read as two years side by side and "HIP-WI" as "hip wi". */
+function askNormalize(q) {
+  let s = String(q == null ? "" : q).toLowerCase().replace(/[‘’ʼ`´]/g, "'");
+  s = s.replace(/\b(what|it|that|there|here|where|how|who|which)'s\b/g, "$1 is")
+       .replace(/\bcan't\b/g, "can not").replace(/\bwon't\b/g, "will not").replace(/n't\b/g, " not")
+       .replace(/\b(i|you|we|they)'(ve|ll|d|re|m)\b/g, "$1").replace(/'s\b/g, "").replace(/s'(?![a-z])/g, "s");
+  s = s.replace(/\$/g, " dollars ").replace(/%/g, " percent ").replace(/&/g, " and ");
+  return s.replace(/[^a-z0-9]+/g, " ").trim();
 }
+
+/* ---------------------------------------------------------------- parse
+   One pass: open abbreviations on the raw text (case matters there), normalise, pull years
+   out (digits and relative words), then consume phrases longest-first from the lexicon so
+   "West Virginia" beats "Virginia", "Mountain Division" beats "Mountain", "tier 1 gap" beats
+   "gap" and "uninsured deductible" beats "uninsured". What is left over is `unmatched`. */
+function askParse(q, prev) {
+  const T = ASK_SYNONYMS;
+  const tokOf = p => askNormalize(p).split(" ").filter(Boolean);
+  const years = (typeof YEARS !== "undefined" && YEARS.length) ? YEARS : [];
+  const first = years[0], lastY = years[years.length - 1];
+
+  /* lexicon, built once from the tables and the page vocabulary */
+  function buildLex() {
+    const L = [];
+    const add = (phrase, type, val, weak) => { const toks = tokOf(phrase); if (toks.length) L.push({toks, type, val, weak: !!weak}); };
+    // regions: exact names from every scheme first, then the informal variants, so a variant never shadows a real name
+    const schemeOf = {}, schemes = typeof SCHEMES === "object" && SCHEMES ? SCHEMES : {};
+    for (const [sc, regs] of Object.entries(schemes)) for (const r of Object.keys(regs || {})) (schemeOf[r] = schemeOf[r] || []).push(sc);
+    // a name in several schemes ("New England") keeps them all; the page's current scheme is chosen at parse time
+    for (const [r, scs] of Object.entries(schemeOf)) add(r, "place", {kind: "region", schemes: scs, region: r});
+    for (const [v, r] of Object.entries(T.regions)) if (schemeOf[r]) add(v, "place", {kind: "region", schemes: schemeOf[r], region: r});
+    // states: names from the data, then variants (a variant may name several states: "the Dakotas")
+    // a name the data lacks (the District of Columbia, in some vintages) is still consumed, and reported
+    const stateVal = n => { const g = typeof BYNAME !== "undefined" && BYNAME[n]; return g ? {kind: "state", code: g.c} : null; };
+    for (const g of (typeof STATES !== "undefined" ? STATES : [])) add(g.n, "place", {kind: "state", code: g.c});
+    for (const n of new Set(Object.values(T.usps))) if (!stateVal(n)) add(n, "nodata", n);
+    for (const [v, n] of Object.entries(T.states)) { const names = [].concat(n), vals = names.map(stateVal).filter(Boolean);
+      if (vals.length) add(v, "place", vals.length > 1 ? vals : vals[0], T.weak.includes(v)); else add(v, "nodata", names[0]); }
+    for (const p of T.nation) add(p, "place", {kind: "nation"});
+    for (const p of T.here) add(p, "here", true);
+    // bands: the table, plus the page's own long layer names, plus a plural of each
+    for (const [k, list] of Object.entries(T.bands)) { const id = /^\d+$/.test(k) ? +k : k;
+      for (const p of list) { add(p, "band", id); if (!/s$/.test(p)) add(p + "s", "band", id); } }
+    if (typeof LONG !== "undefined") LONG.forEach((n, k) => add(n, "band", k));
+    for (const [k, list] of Object.entries(T.intents)) for (const p of list) add(p, k === "whatis" ? "whatis" : "intent", k);
+    for (const [k, list] of Object.entries(T.order)) for (const p of list) add(p, "order", k);
+    for (const [k, list] of Object.entries(T.metric)) for (const p of list) add(p, "metric", k);
+    for (const k of ["this", "last", "all", "decade"]) for (const p of T.years[k]) add(p, "year", k);
+    for (const p of T.stop) add(p, "stop", true);
+    // every USPS code in lower case, for when the words around it make it a place ("in pa", "mi:")
+    const codes = {}; for (const [c, nm] of Object.entries(T.usps)) { const v = stateVal(nm); if (v) codes[c.toLowerCase()] = v; }
+    // phrases a define question may be about: every band phrase and the `terms` list
+    const known = new Set(L.filter(e => e.type === "band").map(e => e.toks.join(" ")).concat(T.terms.map(p => tokOf(p).join(" "))));
+    const triggers = [].concat(T.intents.define, T.intents.whatis).map(tokOf).sort((a, b) => b.length - a.length);
+    // longest phrase first; ties by character length so "tier 1 gap" precedes "tier 1" precedes "gap"
+    L.sort((a, b) => b.toks.length - a.toks.length || b.toks.join(" ").length - a.toks.join(" ").length);
+    return {L, codes, known, triggers};
+  }
+  const LEX = askParse.lex || (askParse.lex = buildLex()), lex = LEX.L;
+
+  /* 1. the raw text: USPS codes and dotted abbreviations are only safe while case survives */
+  const raw0 = String(q == null ? "" : q).slice(0, 2000);
+  const capSet = new Set();                                     // words written with a capital: proper-noun candidates if left over
+  (raw0.match(/[A-Za-z][A-Za-z'’.-]*/g) || []).forEach(w => { if (/^[A-Z]/.test(w)) capSet.add(w.toLowerCase().replace(/[^a-z]/g, "")); });
+  const code = c => { const n = T.usps[c.toUpperCase()]; return n ? " " + n + " " : null; };
+  const raw = raw0.replace(/\b(HIP|FIP)[-\s]?(WI|SI)\b/gi, (m, a, b) => (a + " " + b).toLowerCase())   // keep "WI" of HIP-WI from reading as Wisconsin
+           .replace(/(?<![A-Za-z])(?:U\.?S\.?A?\.?|u\.s\.a?\.?)(?![A-Za-z])/g, " united states ")      // US, U.S., USA, U.S.A., u.s.
+           .replace(/(?<![A-Za-z])([A-Z])\.\s?([A-Z])\.?(?![A-Za-z])/g, (m, a, b) => code(a + b) || m) // N.D., N. D., N.D
+           .replace(/(?<![A-Za-z])([A-Z]{2})(?![A-Za-z])/g, m => code(m) || m)                         // IA, KS (upper case only)
+           .replace(/(?<![A-Za-z])([A-Za-z]{2})(?=(?:'|’)s\b|:)/g, m => code(m) || m)                 // pa's, mi: (a possessive or label is a place)
+           .replace(/(?<![a-z])([a-z])\.([a-z])\.(?![a-z])/g, (m, a, b) => code(a + b) || m);          // n.d.
+  const toks = askNormalize(raw).split(" ").filter(Boolean), n = toks.length;
+  const used = new Array(n).fill(null);
+  const free = i => i >= 0 && i < n && !used[i];
+  const take = (i, j, tag) => { for (let k = i; k <= j; k++) if (k >= 0 && k < n) used[k] = tag; };
+  const S_ = typeof S === "object" && S ? S : null;
+  const anchor = (S_ && years.includes(S_.year)) ? S_.year : (prev && years.includes(prev.year)) ? prev.year : lastY;
+  const unmatched = [];
+  let badYear = false;                                                   // also set by a place the data does not carry
+
+  /* 2. time: digit years and "N years" windows, before the lexicon can eat "since"/"to"/"last" */
+  const isYear = t => /^(1[89]|2[01])\d\d$/.test(t);                  // 1800–2199 are year candidates, so "1850" is rejected, not ignored
+  const num = t => /^\d{1,2}$/.test(t) ? +t : (T.numbers[t] != null ? T.numbers[t] : null);
+  const inYears = y => years.includes(y);
+  let year = null, span = null, timeHit = false, sinceHit = false, endsHit = false;
+  const clampLo = y => first != null && y < first ? first : y;
+  const setSpan = (a, b) => { if (a > b) [a, b] = [b, a]; span = [a, b]; year = null; timeHit = true; };
+  const setYear = y => { year = y; span = null; timeHit = true; };
+  const reject = t => { unmatched.push(t); badYear = true; };
+  for (let i = 0; i < n; i++) {                                        // "(over the) last N years", "N years ago"
+    if (!T.years.unit.includes(toks[i]) || !free(i) || i < 1) continue;
+    const k = num(toks[i - 1]); if (k == null || !free(i - 1)) continue;
+    if (i >= 2 && T.years.window.includes(toks[i - 2]) && free(i - 2)) { setSpan(clampLo(anchor - k), anchor); take(i - 2, i, "year"); }
+    else if (i + 1 < n && T.years.ago.includes(toks[i + 1]) && free(i + 1)) { if (inYears(anchor - k)) setYear(anchor - k); else reject(toks[i - 1] + " " + toks[i] + " " + toks[i + 1]); take(i - 1, i + 1, "year"); }
+  }
+  const Y = []; for (let i = 0; i < n; i++) if (isYear(toks[i]) && free(i)) Y.push(i);
+  const singles = [];
+  for (let x = 0; x < Y.length; x++) {                                  // ranges: "A to B", "A B", "between A and B", "from A to B"
+    const a = Y[x], b = Y[x + 1];
+    if (b != null && (b === a + 1 || (b === a + 2 && T.years.to.includes(toks[a + 1])))) {
+      const ya = +toks[a], yb = +toks[b];
+      if (inYears(ya) && inYears(yb)) setSpan(ya, yb); else { if (!inYears(ya)) reject(toks[a]); if (!inYears(yb)) reject(toks[b]); }
+      if (b === a + 2 && /^(vs|versus)$/.test(toks[a + 1])) endsHit = true;   // "2024 vs 2014" compares the two ends: growth
+      take(a, b, "year"); if (a > 0 && T.years.from.includes(toks[a - 1]) && free(a - 1)) take(a - 1, a - 1, "year"); x++; continue; }
+    singles.push(a);
+  }
+  for (const a of singles) {                                           // "since A", "until B", or a plain year
+    const y = +toks[a], w = toks[a - 1], w2 = toks[a - 2];
+    take(a, a, "year");
+    if (a > 0 && free(a - 1) && T.years.since.includes(w)) { take(a - 1, a - 1, "year"); if (w === "since") sinceHit = true;
+      if (inYears(y)) setSpan(y, anchor); else if (first != null && y < first) { setSpan(first, anchor); reject(toks[a]); } else reject(toks[a]); }
+    else if (a > 0 && free(a - 1) && (T.years.until.includes(w) || (w === "to" && w2 === "up"))) { take(a - 1, a - 1, "year"); if (w === "to") take(a - 2, a - 2, "year");
+      if (inYears(y)) setSpan(first, y); else reject(toks[a]); }
+    else if (inYears(y)) { if (year != null && !span) setSpan(year, y); else if (!span) setYear(y); }
+    else { reject(toks[a]); if (!span && year == null) setYear(y); }   // passed through, so the engine can say the year is outside the data
+  }
+
+  /* 3. the lexicon, longest phrase first; but first the lower-case USPS codes that are also English words
+     ("pa", "oh", "in"): a place only after a place-taking word. "in", "or", "me", "ok", "hi" are too common
+     even then, and are read as a place only with 's or ":" (handled on the raw text above). */
+  const hits = [];
+  const ctx = /^(in|for|of|to|vs|v|versus|and|from|at|with|than|between|compare|comparing|compared|or)$/;
+  for (let i = 0; i < n; i++) { const v = LEX.codes[toks[i]]; if (!v || !free(i) || /^(in|or|me|ok|hi)$/.test(toks[i])) continue;
+    if (i > 0 && ctx.test(toks[i - 1])) { used[i] = "code"; hits.push({type: "place", val: v, weak: false, at: i, end: i + 1}); } }
+  for (const e of lex) for (let i = 0; i + e.toks.length <= n; i++) {
+    let ok = true; for (let j = 0; j < e.toks.length; j++) if (used[i + j] || toks[i + j] !== e.toks[j]) { ok = false; break; }
+    if (!ok) continue;
+    take(i, i + e.toks.length - 1, e); hits.push({type: e.type, val: e.val, weak: e.weak, at: i, end: i + e.toks.length});
+    i += e.toks.length - 1;
+  }
+  hits.sort((a, b) => a.at - b.at);
+  const of = type => hits.filter(h => h.type === type);
+  for (const h of of("year")) {                                        // relative words, unless a digit year already said it
+    if (timeHit && h.val !== "all" && h.val !== "decade") continue;
+    if (h.at === 0 && h.end === 1 && toks[0] === "now" && prev && n > 1) continue;   // "now basic": a follow-up marker, not this year
+    if (h.val === "this") setYear(anchor); else if (h.val === "last") { if (inYears(anchor - 1)) setYear(anchor - 1); else reject("last year"); }
+    else if (h.val === "all") setSpan(first, anchor); else setSpan(clampLo(anchor - 10), anchor);
+  }
+
+  /* 4. places; a weak reading ("Kansas City") only stands alone */
+  let places = []; const hereHit = of("here").length > 0;
+  for (const h of of("nodata")) if (!unmatched.includes(h.val)) { unmatched.push(h.val); badYear = true; }
+  for (const h of of("place")) for (const v of [].concat(h.val)) {
+    const p = v.schemes ? {kind: "region", scheme: v.schemes.includes(S_ && S_.scheme) ? S_.scheme : v.schemes[0], region: v.region} : {...v};
+    p.weak = h.weak; places.push(p); }
+  if (places.some(p => !p.weak)) places = places.filter(p => !p.weak);
+  const key = p => p.kind + "|" + (p.code != null ? p.code : p.region || "");
+  places = places.filter((p, i, a) => a.findIndex(x => key(x) === key(p)) === i).map(p => { const {weak, ...rest} = p; return rest; });
+
+  /* 5. bands; "total" is a modifier when another band is named ("total protected") */
+  let bands = of("band").map(h => h.val).filter((v, i, a) => a.indexOf(v) === i);
+  if (bands.length > 1) bands = bands.filter(b => b !== "tot");
+
+  /* 6. intent, by precedence; then the fallbacks */
+  const said = new Set(of("intent").map(h => h.val));
+  if (sinceHit || endsHit) said.add("growth");
+  const orders = of("order"); if (orders.length) said.add("rank");
+  const metrics = of("metric").map(h => h.val);
+  // "compare" needs two sides: with one place and a time it is growth; with one place and a previous
+  // question it joins that place; with nothing to compare it is dropped and the next intent speaks
+  if (said.has("compare") && places.length < 2 && bands.length < 2) {
+    if (timeHit) { said.delete("compare"); said.add("growth"); }
+    else if (places.length === 1 && prev && Array.isArray(prev.places) && prev.places.length) {
+      for (const p of prev.places) if (!places.some(x => key(x) === key(p))) places.push(p); }
+    else said.delete("compare");
+  }
+  let intent = null, defaulted = false, inherited = false;
+  // growth before trend: a change verb over a range is growth between its ends; trend needs "trend"/"history"/"over time" alone
+  for (const k of ["define", "rank", "compare", "growth", "trend", "show", "value", "share"]) if (said.has(k)) { intent = k; break; }
+  if (!intent && metrics.length) intent = metrics[0] === "dollars" ? "value" : "share";
+  if (!intent && of("whatis").length && !places.length && !timeHit && !metrics.length) intent = "define";
+  if (!intent && span && !(prev && prev.intent)) intent = "trend";      // a bare range ("Iowa 2015–2024") reads as a trend
+  if (!intent && prev && prev.intent && prev.intent !== "unknown") { intent = prev.intent; inherited = true; }
+  if (!intent) { intent = "share"; defaulted = true; }
+
+  /* 7. rank details */
+  let order = orders.some(h => h.val === "bottom") ? "bottom" : "top", rankN = null;
+  const rankAt = hits.filter(h => h.type === "order" || (h.type === "intent" && h.val === "rank"));
+  for (let i = 0; i < n && rankN == null; i++) { if (!free(i)) continue; const k = num(toks[i]); if (k == null || k < 1) continue;
+    const near = rankAt.some(h => h.end === i || h.at === i + 1) || (i + 1 < n && /^states?$/.test(toks[i + 1]));
+    if (near) { rankN = k; take(i, i, "n"); } }
+  if (intent === "rank" && rankN == null && inherited && prev.n) rankN = prev.n;
+  if (intent === "rank" && !orders.length && inherited && prev.order) order = prev.order;
+
+  /* 8. define: the term is the reader's own words, lower-cased with "%" and "-" kept ("86% line", "hip-wi"),
+     taken from the raw question after the trigger ("what is", "define", "what does … mean"), or before it
+     ("Tier 1: what is it?"). A term that is neither a band phrase nor a listed term is off-topic: unknown. */
+  let term = null, termOk = false;
+  if (intent === "define") {
+    const light = raw0.toLowerCase().replace(/[‘’]/g, "'").replace(/\b(what|it|that|there|here|where|how|who|which)'s\b/g, "$1 is")
+      .replace(/'s\b/g, "").replace(/[^a-z0-9%\-\s]/g, " ").replace(/(^|\s)-+|-+(\s|$)/g, " ").trim().split(/\s+/).filter(Boolean);
+    let at = -1, len = 0;
+    for (let i = 0; i < light.length && at < 0; i++) for (const tr of LEX.triggers)
+      if (tr.every((t, j) => light[i + j] === t)) { at = i; len = tr.length; break; }
+    const edge = /^(a|an|the|term|does|do|is|are|was|were|by|of|mean|means|meant|it|exactly|actually|to|me|us|please|what|in|this|here|for|about|called)$/;
+    const trim = a => { while (a.length && edge.test(a[0])) a.shift(); while (a.length && edge.test(a[a.length - 1])) a.pop(); return a; };
+    let ph = at < 0 ? trim(light.slice()) : trim(light.slice(at + len));
+    if (!ph.length && at > 0) ph = trim(light.slice(0, at));
+    if (ph.length) { term = ph.join(" ");
+      const norm = " " + tokOf(term).join(" ") + " ";
+      termOk = bands.length > 0 || [...LEX.known].some(k => norm.includes(" " + k + " "));
+      for (const t of tokOf(term)) for (let i = 0; i < n; i++) if (toks[i] === t && free(i)) used[i] = termOk ? "term" : null; }
+  }
+
+  /* 9. metric */
+  let metric = metrics.length ? metrics[0] : intent === "value" ? "dollars" : null;
+  if (!metric && inherited && prev.metric) metric = prev.metric;
+
+  /* 10. leftovers */
+  for (let i = 0; i < n && unmatched.length < 12; i++)
+    if (free(i) && toks[i].length > 1 && !/^\d+$/.test(toks[i]) && !unmatched.includes(toks[i])) unmatched.push(toks[i].slice(0, 40));
+  const proper = unmatched.some(w => capSet.has(w));
+
+  /* 11. follow-up inheritance: a slot the question names replaces the previous one; the rest carry over */
+  const P = prev && typeof prev === "object" ? prev : null;
+  const outPlaces = hereHit ? [] : places.length ? places : P && Array.isArray(P.places) ? P.places.slice() : [];
+  let band = bands.length ? bands[0] : P && P.band !== undefined ? P.band : null;
+  let outBands = bands.length > 1 ? bands.slice() : !bands.length && P && Array.isArray(P.bands) && P.bands.length > 1 ? P.bands.slice() : null;
+  if (intent === "define") outBands = bands.length > 1 ? bands.slice() : null;
+  if (!timeHit && P && !badYear) { year = P.year != null ? P.year : null; span = Array.isArray(P.years) ? P.years.slice() : null; }
+
+  /* 12. confidence */
+  const explicit = bands.length > 0 || places.length > 0 || hereHit || timeHit || (intent === "define" && termOk);
+  const anything = explicit || said.size > 0 || metrics.length > 0 || of("whatis").length > 0 || rankN != null || badYear;
+  // off topic: no band, no intent word beyond a bare "what is", and words the lexicon does not know
+  const strange = unmatched.filter(w => !/^\d+$/.test(w) && !of("nodata").some(h => h.val === w));   // not a year, not a missing state
+  const offTopic = !bands.length && !said.size && !metrics.length && strange.length > 0;
+  let confidence;
+  if (!anything) { intent = "unknown"; confidence = 0; }
+  else if ((intent === "define" && !termOk) || offTopic) { intent = "unknown"; confidence = explicit ? 0.3 : 0; }
+  else { confidence = 1;
+    if (defaulted) confidence -= 0.3;
+    if (proper || badYear || strange.length) confidence -= 0.3;         // an unknown word ("corn", "county") means the question is not fully understood
+    if (!explicit && !inherited) confidence -= 0.3;                      // an intent word alone: nothing to apply it to
+    confidence = Math.max(0, Math.round(confidence * 10) / 10); }
+
+  const out = {intent, band, places: outPlaces, year, years: span, n: rankN != null ? rankN : 5, order, metric, term, confidence, unmatched};
+  if (outBands) out.bands = outBands;
+  return out;
+}
+
+/* ask-engine.js -- Ask the Explorer: the query (from ask-parse.js) becomes an answer computed from the data
+   Authored. Concatenated by build.py into one closure, in the order its CODE list gives.
+   Contract: ASK_CONTRACT.md. Pure except askShow(); every number comes from aggregate(). */
+/* ---------------------------------------------------------------- definitions
+   Plain language, one entry per layer (keyed "0".."10"), per group and per term.
+   The wording follows the Overview and Help tabs so the drawer and the prose
+   never disagree. ASK_ALIAS maps the words a reader types onto these keys. */
+const DEFINITIONS = {
+  "0": {name: "Basic coverage", text: "The part of crop production value inside a purchased basic guarantee: APH, yield, revenue, area, index and dollar plans. It is the bottom of the stack and the first of the protected layers."},
+  "1": {name: "SCO", text: "The Supplemental Coverage Option, an area-based endorsement that fills the Tier 1 deductible band above the basic policy, up to the 86% ceiling (90% from 2027). Counted as protected."},
+  "2": {name: "HIP-WI", text: "Hurricane Insurance Protection - Wind Index, an endorsement that pays on a county wind trigger. It fills part of the Tier 1 band and is counted as protected."},
+  "3": {name: "PACE", text: "The Post-Application Coverage Endorsement, which covers a prevented post-application of nitrogen on corn. It fills part of the Tier 1 band and is counted as protected."},
+  "4": {name: "FIP-SI", text: "Fire Insurance Protection - Smoke Index, an endorsement that pays on a smoke index for grapes. It fills part of the Tier 1 band and is counted as protected."},
+  "5": {name: "Tier 1 gap", text: "Deductible value in the Tier 1 band, between the basic coverage level and the 86% ceiling, that a product such as SCO could have filled but nobody bought. Insurable, not insured."},
+  "6": {name: "ECO", text: "The Enhanced Coverage Option, an area-based endorsement that fills the Tier 2 deductible band between 86% and 95%. Counted as protected."},
+  "7": {name: "MCO", text: "The Margin Coverage Option, an endorsement that fills part of the Tier 2 band. Counted as protected."},
+  "8": {name: "Tier 2 gap", text: "Deductible value in the Tier 2 band, between 86% and 95% of expected production, that a product such as ECO could have filled but nobody bought. Insurable, not insured."},
+  "9": {name: "Unprotected deductible", text: "The deductible no product reaches, above 95% of expected production, plus the unelected share of price. No policy can be bought for it."},
+  "10": {name: "Uninsured production", text: "Crop production value on acres carrying no federal crop insurance policy at all. It is the residual once every insured layer is taken out of ERS crop value."},
+  prot: {name: "Protected", text: "Basic coverage plus every supplemental buy-up (SCO, HIP-WI, PACE, FIP-SI, ECO and MCO), as a share of crop production value. It answers the first question the explorer asks: how much is protected?"},
+  supp: {name: "Supplemental buy-up", text: "The endorsements bought on top of a basic policy to fill its deductible bands: SCO, HIP-WI, PACE and FIP-SI in Tier 1, ECO and MCO in Tier 2."},
+  gaps: {name: "Coverage gaps", text: "Deductible bands a product could have filled but nobody bought: the Tier 1 gap below 86% and the Tier 2 gap between 86% and 95%. Insurable, not insured."},
+  unp: {name: "Unprotected", text: "Crop production value no policy stands behind: the unprotected deductible that no product reaches, plus uninsured production on acres with no policy."},
+  tot: {name: "Crop production value", text: "A year's value of crop production at the farm gate, as USDA ERS publishes it, nationally and for every state. The explorer splits each dollar of it across eleven layers, so the shares always add to one."},
+  "coverage gap": {name: "Coverage gap", text: "A deductible band a product could have filled but nobody bought. The Tier 1 gap sits below the 86% ceiling and the Tier 2 gap between 86% and 95%; together they are the insurable value left on the table."},
+  "protected share": {name: "Protected share", text: "Protected dollars (basic coverage plus every supplemental buy-up) divided by crop production value for the same place and year. The headline number in the Reading rail."},
+  "penetration": {name: "Penetration", text: "Another name for the protected share: how much of a place's crop production value stands behind federal crop insurance. Do not quote it for a year whose uninsured layer is clamped at zero."},
+  "projected denominator": {name: "Projected denominator", text: "For the latest year, state crop production value is not yet published, so it is projected from recent shares of the national total. The insured layers are observed; the uninsured residual is an estimate."},
+  "insured above crop value": {name: "Insured above crop value", text: "RMA liability is set before the season and ERS crop value measured after it, so in a bad year insured expected production can exceed crop value. The uninsured layer is then clamped at zero and the year's penetration should not be quoted."},
+  "tier 1": {name: "Tier 1", text: "The deductible band between the basic coverage level and the 86% ceiling (90% from 2027). SCO, HIP-WI, PACE and FIP-SI fill it; what they leave is the Tier 1 gap."},
+  "86% line": {name: "The 86% line", text: "The ceiling of the Tier 1 band: the coverage level SCO can take a policy up to. Below it sit basic coverage and the Tier 1 gap; above it, up to 95%, is Tier 2, where ECO and MCO work. Set by statute, it rises to 90% with the 2027 crop year, which moves four points of band from Tier 2 into Tier 1."},
+  "tier 2": {name: "Tier 2", text: "The deductible band between 86% and 95% of expected production. ECO and MCO fill it; what they leave is the Tier 2 gap."},
+  "deductible": {name: "Deductible", text: "The part of expected production a basic policy does not guarantee. Supplemental products fill some of it (Tier 1 and Tier 2); the rest, above 95% and the unelected share of price, no product reaches."},
+  "buy-up": {name: "Buy-up", text: "Coverage bought above the basic policy: the supplemental endorsements SCO, HIP-WI, PACE, FIP-SI, ECO and MCO. Counted as protected alongside basic coverage."},
+  "basic coverage": {name: "Basic coverage", text: "The purchased basic guarantee itself, under APH, yield, revenue, area, index or dollar plans, before any supplemental endorsement. The bottom layer of the stack."},
+  "sco": {name: "SCO", text: "Supplemental Coverage Option: an area-based endorsement filling the Tier 1 deductible band above the basic policy, up to 86%. Counted as protected."},
+  "eco": {name: "ECO", text: "Enhanced Coverage Option: an area-based endorsement filling the Tier 2 band between 86% and 95%. Counted as protected."},
+  "mco": {name: "MCO", text: "Margin Coverage Option: an endorsement filling part of the Tier 2 band. Counted as protected."},
+  "hip-wi": {name: "HIP-WI", text: "Hurricane Insurance Protection - Wind Index: an endorsement paying on a county wind trigger, filling part of the Tier 1 band. Counted as protected."},
+  "pace": {name: "PACE", text: "Post-Application Coverage Endorsement: covers a prevented post-application of nitrogen on corn, filling part of the Tier 1 band. Counted as protected."},
+  "fip-si": {name: "FIP-SI", text: "Fire Insurance Protection - Smoke Index: an endorsement paying on a smoke index for grapes, filling part of the Tier 1 band. Counted as protected."},
+  "crop production value": {name: "Crop production value", text: "The value of crop production at the farm gate, from USDA ERS Farm Income and Wealth Statistics, nationally and by state. It is the denominator of every share on this page."},
+  "rma liability": {name: "RMA liability", text: "The dollar guarantee on federal crop insurance policies, from the RMA Summary of Business by plan and coverage level. Divided by the coverage level and the price election it gives insured expected production, the numerator of every share."},
+  "ers": {name: "ERS", text: "USDA's Economic Research Service, whose Farm Income and Wealth Statistics give the value of crop production used as the denominator."}
+};
+// What a reader types -> a DEFINITIONS key. Lower case, punctuation stripped.
+const ASK_ALIAS = {
+  "basic": "0", "basic coverage": "basic coverage", "underlying policy": "0", "aph": "0", "yp": "0", "rp": "0",
+  "sco": "sco", "supplemental coverage option": "sco", "hip": "hip-wi", "hipwi": "hip-wi", "hip wi": "hip-wi", "hurricane": "hip-wi", "wind": "hip-wi",
+  "pace": "pace", "post application": "pace", "fip": "fip-si", "fipsi": "fip-si", "fip si": "fip-si", "fire": "fip-si", "smoke": "fip-si",
+  "eco": "eco", "enhanced coverage option": "eco", "mco": "mco", "margin coverage option": "mco",
+  "tier 1 gap": "5", "tier one gap": "5", "tier 2 gap": "8", "tier two gap": "8", "tier 1": "tier 1", "tier one": "tier 1", "86% line": "86% line", "86 percent line": "86% line", "86 line": "86% line", "86 percent": "86% line", "86%": "86% line", "the line": "86% line", "86% ceiling": "86% line", "tier 1 ceiling": "86% line", "sco ceiling": "86% line", "tier 2": "tier 2", "tier two": "tier 2",
+  "unprotected deductible": "9", "uninsured deductible": "9", "deductible": "deductible", "uninsured production": "10", "uninsured": "10", "no policy": "10",
+  "protected": "prot", "protection": "prot", "insured": "prot", "covered": "prot", "coverage": "prot", "protected share": "protected share", "penetration": "penetration",
+  "supplemental": "supp", "supp": "supp", "buy up": "buy-up", "buyup": "buy-up", "endorsements": "supp", "endorsement": "supp",
+  "gaps": "gaps", "gap": "coverage gap", "coverage gap": "coverage gap", "coverage gaps": "gaps", "unbought": "gaps",
+  "unprotected": "unp", "not protected": "unp", "uncovered": "unp", "unp": "unp",
+  "tot": "tot", "total": "tot", "crop value": "tot", "crop production value": "crop production value", "production value": "crop production value",
+  "projected": "projected denominator", "projected denominator": "projected denominator", "projection": "projected denominator",
+  "clamped": "insured above crop value", "insured above crop value": "insured above crop value",
+  "liability": "rma liability", "rma": "rma liability", "rma liability": "rma liability", "ers": "ers"
+};
+
+/* ---------------------------------------------------------------- bands */
+const ASK_KS = {prot: [...PROT].sort((a, b) => a - b), supp: [...SUPP].sort((a, b) => a - b), gaps: [5, 8], unp: [9, 10], tot: [0,1,2,3,4,5,6,7,8,9,10]};
+const ASK_GROUP = {prot: "protected", supp: "in supplemental buy-up", gaps: "in coverage gaps", unp: "unprotected", tot: "crop production value"};
+// A band id as the parser gives it -> {id, ks, label, phrase}. Unknown ids fall back to "prot".
+function askBand(b) {
+  if (b == null) b = "prot";
+  if (typeof b === "string" && /^\d+$/.test(b)) b = +b;
+  if (typeof b === "number" && b >= 0 && b <= 10) {
+    const nm = bandName(b);
+    return {id: b, ks: [b], label: nm, phrase: b === 0 ? "in basic coverage" : b === 5 || b === 8 ? "in the " + nm : b === 9 ? "in the unprotected deductible" : b === 10 ? "uninsured" : "under " + nm};
+  }
+  if (!ASK_KS[b]) b = "prot";
+  return {id: b, ks: ASK_KS[b], label: DEFINITIONS[b].name, phrase: ASK_GROUP[b]};
+}
+// The band's dollars, the total and the share for one geography-year, from aggregate() only.
+function askStats(agg, i, ks) {
+  const row = agg.M[i], total = sum(row), dollars = sum(ks.map(k => row[k]));
+  return {dollars, total, share: total > 0 ? dollars / total : NaN, proj: agg.proj[i], ov: agg.ov[i]};
+}
+const askPct = x => pct(x, 1);
+// A band label mid-sentence: acronyms and "Tier" keep their case, words do not.
+const askLc = s => /^(Tier|[A-Z0-9-]+$)/.test(s) ? s : s.charAt(0).toLowerCase() + s.slice(1);
+const askPP = x => (x >= 0 ? "+" : "−") + Math.abs(100 * x).toFixed(1) + " pp";
+// Percent change in dollars against `ref` ("2023" or "the 2019–2023 average"),
+// worded as the growth table formats it: a multiple past ninefold, "new" from zero.
+function askChange(x, ref, avg) {
+  if (x === Infinity) return `new (none ${avg ? "over" : "in"} ${ref})`;
+  if (!isFinite(x) || Math.abs(x) < .0005) return `level with ${ref}`;
+  if (x >= 9) return `${(1 + x).toFixed(0)} times ${ref}`;
+  return avg ? `${askPct(Math.abs(x))} ${x > 0 ? "above" : "below"} ${ref}` : `${x > 0 ? "up" : "down"} ${askPct(Math.abs(x))} on ${ref}`;
+}
+
+/* ---------------------------------------------------------------- places */
+function askResolvePlaces(places) {
+  if (!places || !places.length) { const s = selection(); return {codes: s.codes.slice(), names: s.names.slice(), title: s.title, regional: s.regional, fromPage: true}; }
+  const codes = [], names = [], parts = [], lost = [];
+  const add = g => { if (g && !codes.includes(g.c)) { codes.push(g.c); names.push(g.n); } };
+  for (const p of places) {
+    if (!p) continue;
+    const part = t => { if (!parts.includes(t)) parts.push(t); };
+    if (p.kind === "nation") { add(BYCODE[0]); part("United States"); }
+    else if (p.kind === "state") { const g = BYCODE[String(p.code)]; if (g && g.c !== 0) { add(g); part(g.n); } else lost.push(p.name || String(p.code)); }
+    else if (p.kind === "region") { const nm = (SCHEMES[p.scheme] || {})[p.region]; if (nm) { nm.map(n => BYNAME[n]).forEach(add); part(p.region); } else lost.push(p.region || p.scheme || "region"); }
+  }
+  const allStates = places.every(p => p && p.kind === "state");
+  const title = !parts.length ? "" : parts.length === 1 ? parts[0]
+    : allStates && parts.length > 3 ? parts.length + " states" : parts.slice(0, -1).join(", ") + " and " + parts.at(-1);
+  return {codes, names: names.slice().sort(), title, regional: places.some(p => p && p.kind === "region"), lost, fromPage: false};
+}
+
+/* ---------------------------------------------------------------- caveats
+   One sentence, the Reading rail's wording, when the geography-year is
+   projected or clamped. For several states aggregate() already says "any". */
+function askCaveat(st, year, many) {
+  const who = many ? " for at least one of these states" : "";
+  const c = [];
+  if (st.proj) c.push(`crop production value for ${year} is projected${who} from recent shares of the national total, so the uninsured residual is an estimate`);
+  if (st.ov > 0) c.push(`insured expected production exceeded ERS crop value by ${money(st.ov)} in ${year}${who}, so the uninsured layer is clamped at zero and this year's penetration should not be quoted`);
+  if (!c.length) return "";
+  return " Caveat: " + c.join("; and ") + ".";
+}
+
+/* ---------------------------------------------------------------- what the data does not hold
+   A question can name a real place, year and band and still ask for something
+   this page has no column for. If any unplaced word is one of these, the engine
+   refuses and says why, in these words, rather than answer a different question. */
+const ASK_NOT_HELD = [
+  {group: "county", reason: "the data has no county detail; every number is for the nation, a state or a region of states",
+    words: ["county", "counties", "parish", "parishes", "township", "townships", "district", "districts", "city", "cities", "town", "towns"]},
+  {group: "crop", reason: "all crops are combined; there is no split by crop",
+    words: ["corn", "maize", "soybean", "soybeans", "soy", "wheat", "cotton", "rice", "sorghum", "milo", "barley", "oats", "oat", "peanut", "peanuts", "sugar", "sugarbeet", "sugarbeets", "sugarcane", "beet", "beets", "cane",
+      "potato", "potatoes", "apple", "apples", "almond", "almonds", "grape", "grapes", "hay", "alfalfa", "forage", "pasture", "rangeland", "tobacco", "canola", "sunflower", "sunflowers", "flax", "lentil", "lentils", "pea", "peas", "bean", "beans",
+      "citrus", "orange", "oranges", "cherry", "cherries", "peach", "peaches", "nut", "nuts", "pecan", "pecans", "walnut", "walnuts", "pistachio", "pistachios", "tomato", "tomatoes", "vegetable", "vegetables", "fruit", "fruits", "nursery",
+      "cattle", "livestock", "dairy", "milk", "hog", "hogs", "swine", "poultry", "commodity", "commodities", "specialty"]},
+  {group: "money", reason: "the data holds liabilities only; no premiums, subsidies, indemnities, loss ratios, payments or policy counts",
+    words: ["premium", "premiums", "subsidy", "subsidies", "subsidized", "subsidised", "indemnity", "indemnities", "loss", "losses", "ratio", "ratios", "claim", "claims", "payment", "payments", "paid", "payout", "payouts", "pay", "pays",
+      "sold", "bought", "buyers", "purchases", "purchased", "count", "counts", "contracts", "contract", "enrolled", "enrollment", "participation", "participants", "participating",
+      "aip", "aips", "insurer", "insurers", "company", "companies", "agent", "agents", "commission", "commissions", "reinsurance", "sra", "underwriting", "gain", "gains", "cost", "costs", "spending", "outlay", "outlays", "budget", "appropriation"]},
+  {group: "quantity", reason: "there are no acres, bushels, yields, prices or rates in the data, only dollars of crop value and liability",
+    words: ["acre", "acres", "acreage", "bushel", "bushels", "ton", "tons", "tonnes", "pound", "pounds", "hundredweight", "cwt", "yield", "yields", "price", "prices", "rate", "rates", "election", "elections", "producer", "producers", "grower", "growers", "farmer", "farmers", "operation", "operations"]}
+];
+const ASK_NOT_HELD_INDEX = Object.fromEntries(ASK_NOT_HELD.flatMap(g => g.words.map(w => [w, g])));
+// Four-digit years the parser could not place, plus the ends of a `years` range, that lie outside the data.
+function askBadYears(q) {
+  const out = [];
+  for (const w of q.unmatched || []) if (/^\d{4}$/.test(String(w)) && yi(+w) < 0) out.push(+w);
+  if (Array.isArray(q.years)) for (const y of q.years) if (Number.isFinite(+y) && yi(+y) < 0 && !out.includes(+y)) out.push(+y);
+  if (q.year != null && yi(+q.year) < 0 && !out.includes(+q.year)) out.push(+q.year);
+  return out;
+}
+// The refusal: why, then what the data CAN say for the place and year it did find.
+function askRefuse(q, pl, year, band, why) {
+  const where = pl && pl.title && pl.title !== "United States" ? pl.title : "the United States", when = yi(year) >= 0 ? year : S.year;
+  const what = band && band.id !== "prot" ? `${askLc(band.label)} share` : "protected share";
+  const offer = `I can give the ${what} of all-crop value for ${esc(where)} in ${when}, rank the states on it, or say how it changed since ${when - 1}.`;
+  return {html: `${why} ${offer}`, src: "", nums: {}, view: null, unsure: true};
+}
+
+/* ---------------------------------------------------------------- answers */
+const ASK_SRC = (title, year, band) => `${title}, ${year}: ${band === "tot" ? "ERS crop production value" : "RMA liability over ERS crop production value"}`;
+const askView = (q, pl, year, band) => ({places: pl.fromPage ? [] : q.places.slice(), year, band});
+function askUnsure(q, pl, year, band, extra) {
+  const got = [];
+  if (pl && pl.title && !pl.fromPage) got.push(`the place (${esc(pl.title)})`);
+  if (q.year != null && yi(q.year) >= 0) got.push(`the year (${q.year})`);
+  if (q.band != null) got.push(`the band (${esc(band.label)})`);
+  const um = (q.unmatched || []).filter(Boolean).map(esc);
+  const where = pl && pl.title ? (pl.title === "United States" ? "the United States" : pl.title) : "Iowa", when = yi(year) >= 0 ? year : S.year, what = askLc(band ? band.label : "SCO");
+  const ex = [`What share of crop value in ${where} was ${band && band.id !== "prot" ? "in " + what : "protected"} in ${when}?`,
+    `Which states had the highest ${what} share in ${when}?`, `How did ${what} dollars change in ${where} since ${when - 1}?`];
+  let h = extra ? extra + " " : "I could not turn that into a question about the data. ";
+  if (got.length) h += `I understood ${got.join(", ")}`;
+  if (um.length) h += `${got.length ? " but" : "I"} could not place: ${um.join(", ")}`;
+  if (got.length || um.length) h += ". ";
+  h += `Try: ${ex.slice(0, 3).map(e => `“${esc(e)}”`).join(", or ")}.`;
+  return {html: h, src: "", nums: {}, view: null, unsure: true};
+}
+function askAnswer(query) {
+  try { return askAnswer_(query || {}); }
+  catch (e) { return {html: "Something went wrong computing that answer; try a simpler question with one place, one year and one band.", src: "", nums: {}, view: null, unsure: true}; }
+}
+function askAnswer_(q) {
+  const band = askBand(q.band);
+  const pl = askResolvePlaces(q.places || []);
+  const year = q.year != null ? +q.year : S.year, i = yi(year);
+  const conf = q.confidence == null ? 1 : +q.confidence;
+  if (!q.intent || q.intent === "unknown" || conf < .4) return askUnsure(q, pl, year, band);
+  // Refuse before computing: a word the data has no column for, or a year it does not cover.
+  const held = (q.unmatched || []).map(w => String(w).toLowerCase()).filter(w => ASK_NOT_HELD_INDEX[w]);
+  if (held.length) { const groups = [...new Set(held.map(w => ASK_NOT_HELD_INDEX[w].group))].map(g => ASK_NOT_HELD.find(x => x.group === g).reason);
+    return askRefuse(q, pl, year, band, `I cannot answer for “${held.map(esc).join("”, “")}”: ${groups.join("; ")}.`); }
+  const bad = askBadYears(q);
+  if (bad.length) return askRefuse(q, pl, S.year, band, `The data covers ${YEARS[0]}–${YEARS[NY - 1]}, not ${bad.join(", ")}.`);
+  if (q.intent === "define") return askDefine(q, band);
+  if (!pl.codes.length) return askUnsure(q, pl, year, band, `I could not find ${pl.lost && pl.lost.length ? "the place " + pl.lost.map(esc).join(", ") : "a place"} in the data.`);
+  if (i < 0) return askUnsure(q, pl, year, band, `I only have ${YEARS[0]}–${YEARS[NY - 1]}; ${esc(String(year))} is outside that.`);
+  const many = pl.codes.length > 1;
+  switch (q.intent) {
+    case "value": case "share": case "show": return askValue(q, pl, year, i, band, many);
+    case "rank": return askRank(q, year, i, band);
+    case "compare": return askCompare(q, pl, year, i, band, many);
+    case "trend": return askTrend(q, pl, year, band, many);
+    case "growth": return askGrowth(q, pl, year, i, band, many);
+    default: return askUnsure(q, pl, year, band);
+  }
+}
+/* value / share / show: one place, one year, one band. The headline follows
+   `metric` when given, otherwise the intent. */
+function askValue(q, pl, year, i, band, many) {
+  const st = askStats(aggregate(pl.codes), i, band.ks), T = esc(pl.title);
+  if (!(st.total > 0)) return {html: `${T}, ${year}: no crop production value in the data.`, src: ASK_SRC(pl.title, year, band.id), nums: {total: 0}, view: askView(q, pl, year, band.id), unsure: true};
+  const asDollars = q.metric === "dollars" || (q.metric !== "share" && q.intent === "value");
+  let h;
+  if (band.id === "tot") h = `${T}, ${year}: <span class="big">${money(st.total)}</span> of crop production value.`;
+  else if (asDollars) h = `${T}, ${year}: <span class="big">${money(st.dollars)}</span> ${esc(band.phrase)}, ${askPct(st.share)} of ${money(st.total)} of crop production value.`;
+  else h = `${T}, ${year}: <span class="big">${askPct(st.share)}</span> of crop production value is ${esc(band.phrase)} — ${money(st.dollars)} of ${money(st.total)}.`;
+  h += askCaveat(st, year, many);
+  if (q.intent === "show") h += ` Showing it on the page.`;
+  const nums = band.id === "tot" ? {total: st.total, dollars: st.total, share: 1} : {share: st.share, dollars: st.dollars, total: st.total};
+  if (st.ov > 0) nums.clamped = st.ov;
+  return {html: h, src: ASK_SRC(pl.title, year, band.id), nums, view: askView(q, pl, year, band.id), unsure: false, show: q.intent === "show"};
+}
+/* rank: STATES only, never the nation; states with no crop value that year are left out. */
+function askRank(q, year, i, band) {
+  const byDollars = q.metric === "dollars" || band.id === "tot", n = Math.max(1, Math.min(+q.n || 5, 50)), bottom = q.order === "bottom";
+  const rows = STATES.map(g => { const st = askStats(aggregate([g.c]), i, band.ks); return {code: g.c, name: g.n, share: st.share, dollars: st.dollars, total: st.total, proj: st.proj, ov: st.ov}; })
+    .filter(r => r.total > 0);
+  if (!rows.length) return {html: `No state has crop production value in ${year}.`, src: `0 states, ${year}`, nums: {}, view: null, unsure: true};
+  const key = r => byDollars ? r.dollars : r.share;
+  rows.sort((a, b) => (key(a) - key(b)) * (bottom ? 1 : -1) || a.name.localeCompare(b.name));
+  const top = rows.slice(0, n), N = rows.length;
+  const what = band.id === "tot" ? "crop production value" : band.id === "prot" ? "protected" : askLc(band.label);
+  const measure = band.id === "tot" ? "" : byDollars ? " dollars" : " share of crop production value";
+  if (!bottom && !(key(top[0]) > 0)) return {html: `No state had any ${esc(what)} in ${year}, of ${N} states with crop production value.`, src: `${N} states, ${year}`, nums: {n_states: N, rank: []}, view: {places: [], year, band: band.id}, unsure: false};
+  const items = top.map((r, j) => `<b>${esc(r.name)}</b> ${j === 0 ? '<span class="big">' : ""}${byDollars ? money(r.dollars) : askPct(r.share)}${j === 0 ? "</span>" : ""}${byDollars ? "" : ` (${money(r.dollars)})`}`);
+  let h = `${bottom ? "Lowest" : "Highest"} ${esc(what)}${measure} in ${year}, of ${N} states: ${items.join("; ")}.`;
+  const flag = top.filter(r => r.proj || r.ov > 0);
+  if (flag.length) h += ` Caveat: ${year} is ${top.some(r => r.proj) ? "projected" : ""}${top.some(r => r.proj) && top.some(r => r.ov > 0) ? " or " : ""}${top.some(r => r.ov > 0) ? "clamped (insured value above crop value)" : ""} for ${flag.map(r => esc(r.name)).join(", ")}, so ${flag.length > 1 ? "those" : "that"} ${byDollars ? "uninsured residual" : "share"}${flag.length > 1 ? "s are estimates" : " is an estimate"}.`;
+  return {html: h, src: `${N} states, ${year}`, nums: {n_states: N, rank: top.map(r => ({code: r.code, name: r.name, share: r.share, dollars: r.dollars}))},
+    view: {places: [], year, band: band.id}, unsure: false};
+}
+/* compare: places (one line each) or bands (one line each, one place). A single
+   non-national place is compared with the nation. */
+function askCompare(q, pl, year, i, band, many) {
+  const bands = Array.isArray(q.bands) && q.bands.length >= 2 ? q.bands.map(askBand) : null;
+  const byDollars = q.metric === "dollars";
+  const one = (st, title, first, phrase) => `<b>${esc(title)}</b> ${first ? '<span class="big">' : ""}${byDollars ? money(st.dollars) : askPct(st.share)}${first ? "</span>" : ""} ${byDollars ? `(${askPct(st.share)})` : `(${money(st.dollars)})`}${phrase ? " " + esc(phrase) : ""}`;
+  if (bands) {
+    const agg = aggregate(pl.codes), sts = bands.map(b => askStats(agg, i, b.ks));
+    if (!(sts[0].total > 0)) return {html: `${esc(pl.title)}, ${year}: no crop production value in the data.`, src: ASK_SRC(pl.title, year, "tot"), nums: {total: 0}, view: null, unsure: true};
+    let h = `${esc(pl.title)}, ${year}, of ${money(sts[0].total)} of crop production value: ${sts.map((s, j) => one(s, bands[j].label, j === 0)).join("; ")}.`;
+    if (sts.length === 2) h += ` ${esc(bands[0].label)} is ${askPP(sts[0].share - sts[1].share).replace(/^[+−]/, "")} of crop value ${sts[0].share >= sts[1].share ? "more" : "less"} than ${esc(bands[1].label)}.`;
+    h += askCaveat(sts[0], year, many);
+    const nums = {total: sts[0].total, items: sts.map((s, j) => ({title: bands[j].label, share: s.share, dollars: s.dollars}))};
+    if (sts.length === 2) nums.pp_diff = sts[0].share - sts[1].share;
+    return {html: h, src: ASK_SRC(pl.title, year, "prot"), nums, view: {places: pl.fromPage ? [] : q.places.slice(), year, band: null}, unsure: false};
+  }
+  let places = (q.places || []).filter(Boolean);
+  if (places.length < 2) { if (!places.length) places = pl.fromPage && S.mode === "us" ? [{kind: "nation"}] : (pl.regional ? [{kind: "region", scheme: S.scheme, region: S.region}] : pl.codes.map(c => ({kind: "state", code: c})));
+    if (places.length === 1 && places[0].kind !== "nation") places = [...places, {kind: "nation"}]; }
+  if (places.length < 2) return askValue(q, pl, year, i, band, many);
+  const items = places.map(p => { const r = askResolvePlaces([p]); const st = r.codes.length ? askStats(aggregate(r.codes), i, band.ks) : null; return {title: r.title, st, many: r.codes.length > 1}; }).filter(x => x.st && x.st.total > 0);
+  if (items.length < 2) return askUnsure(q, pl, year, band, "I could not find two places with crop production value to compare.");
+  let h = `${band.id === "prot" ? "Protected" : band.id === "tot" ? "Crop production value" : esc(band.label)} ${band.id === "tot" ? "" : "share of crop production value "}in ${year}: ${items.map((x, j) => one(x.st, x.title, j === 0)).join("; ")}.`;
+  if (items.length === 2 && band.id !== "tot") { const d = items[0].st.share - items[1].st.share;
+    h += ` ${esc(items[0].title)} is ${askPP(d).replace(/^[+−]/, "")} ${d >= 0 ? "higher" : "lower"} than ${esc(items[1].title)}.`; }
+  const flag = items.filter(x => x.st.proj || x.st.ov > 0);
+  if (flag.length) h += ` Caveat: ${year} is ${flag.some(x => x.st.proj) ? "projected" : ""}${flag.some(x => x.st.proj) && flag.some(x => x.st.ov > 0) ? " or " : ""}${flag.some(x => x.st.ov > 0) ? "clamped (insured value above crop value)" : ""} for ${flag.map(x => esc(x.title)).join(", ")}${flag.some(x => x.many) ? " or at least one state in it" : ""}, so ${flag.length > 1 ? "those shares are estimates" : "that share is an estimate"}.`;
+  const nums = {items: items.map(x => ({title: x.title, share: x.st.share, dollars: x.st.dollars}))};
+  if (items.length === 2) nums.pp_diff = items[0].st.share - items[1].st.share;
+  // "Show this" on a comparison puts every compared place on the page together,
+  // summed into one stack, which is the page's own reading of a multi-state pick.
+  const showable = places.filter(p => p.kind === "state" || p.kind === "region" || p.kind === "nation");
+  const view = showable.length && (showable.every(p => p.kind === "state") || showable.length === 1) ? {places: showable, year, band: band.id} : null;
+  return {html: h, src: `${items.map(x => x.title).join(" and ")}, ${year}: RMA liability over ERS crop production value`, nums, view, unsure: false};
+}
+/* trend: first, last, high and low over the range, with their years. */
+function askTrend(q, pl, year, band, many) {
+  let [a, b] = Array.isArray(q.years) && q.years.length === 2 ? q.years.map(Number) : [S.win[0], year];
+  if (a > b) [a, b] = [b, a];
+  a = Math.max(a, YEARS[0]); b = Math.min(b, YEARS[NY - 1]);
+  if (!(yi(a) >= 0 && yi(b) >= 0)) return askUnsure(q, pl, year, band, `I only have ${YEARS[0]}–${YEARS[NY - 1]}.`);
+  const agg = aggregate(pl.codes), byDollars = q.metric === "dollars" || band.id === "tot";
+  const pts = [];
+  for (let j = yi(a); j <= yi(b); j++) { const st = askStats(agg, j, band.ks); if (st.total > 0) pts.push({year: YEARS[j], share: st.share, dollars: st.dollars, proj: st.proj, ov: st.ov}); }
+  if (pts.length < 2) return askUnsure(q, pl, year, band, `${esc(pl.title)} has fewer than two years with crop production value in ${a}–${b}.`);
+  const key = p => byDollars ? p.dollars : p.share, fmt = p => byDollars ? money(p.dollars) : askPct(p.share);
+  const first = pts[0], last = pts.at(-1);
+  const high = pts.reduce((m, p) => key(p) > key(m) ? p : m, pts[0]), low = pts.reduce((m, p) => key(p) < key(m) ? p : m, pts[0]);
+  const what = band.id === "tot" ? "crop production value" : band.id === "prot" ? "protected share of crop production value" : `${askLc(band.label)} ${byDollars ? "dollars" : "share of crop production value"}`;
+  let h = `${esc(pl.title)}, ${esc(what)}: from ${fmt(first)} in ${first.year} to <span class="big">${fmt(last)}</span> in ${last.year}`;
+  h += high.year === low.year ? ", flat across the range." : `, highest at ${fmt(high)} in ${high.year} and lowest at ${fmt(low)} in ${low.year}.`;
+  const flagged = pts.filter(p => p.proj || p.ov > 0).map(p => p.year), word = band.id === "tot" ? "uninsured residual" : "share";
+  if (flagged.length) h += ` Caveat: ${flagged.length === 1 ? flagged[0] + " is" : flagged.length <= 4 ? flagged.join(", ") + " are" : `${flagged.length} of these ${pts.length} years are`} projected or clamped (insured value above crop value)${many ? " for at least one of these states" : ""}, so ${flagged.length === 1 ? `that year's ${word} is an estimate` : `those ${word}s are estimates`}.`;
+  const nums = {share: last.share, dollars: last.dollars, from_year: first.year, to_year: last.year, first_share: first.share, first_dollars: first.dollars, last_share: last.share, last_dollars: last.dollars,
+    high_year: high.year, high_share: high.share, high_dollars: high.dollars, low_year: low.year, low_share: low.share, low_dollars: low.dollars};
+  return {html: h, src: `${pl.title}, ${first.year}–${last.year}: RMA liability over ERS crop production value`, nums, view: askView(q, pl, last.year, band.id), unsure: false};
+}
+/* growth: the growth table's arithmetic, in a sentence. Against year−1 and the
+   mean of the five prior years (as growthRows does: mean of dollars, mean of
+   shares), or between the two ends of a `years` range. */
+function askGrowth(q, pl, year, i, band, many) {
+  const agg = aggregate(pl.codes), T = esc(pl.title);
+  const gr = (a, b) => !(b > 0) ? (a > 0 ? Infinity : NaN) : a / b - 1;
+  const range = Array.isArray(q.years) && q.years.length === 2 && yi(q.years[0]) >= 0 && yi(q.years[1]) >= 0 && q.years[0] !== q.years[1];
+  const isTot = band.id === "tot", noun = isTot ? "crop production value" : band.id === "prot" ? "protected dollars" : askLc(band.label) + " dollars";
+  if (range) {
+    const [a, b] = q.years[0] < q.years[1] ? q.years.map(Number) : [q.years[1], q.years[0]].map(Number);
+    const sa = askStats(agg, yi(a), band.ks), sb = askStats(agg, yi(b), band.ks);
+    if (!(sb.total > 0)) return {html: `${T}, ${b}: no crop production value in the data.`, src: ASK_SRC(pl.title, b, band.id), nums: {total: 0}, view: null, unsure: true};
+    const d = gr(sb.dollars, sa.dollars), pp = sb.share - sa.share;
+    let h = `${T}, ${esc(noun)}: <span class="big">${money(sb.dollars)}</span> in ${b}, ${askChange(d, String(a))}${d === Infinity ? "" : ` (${money(sa.dollars)})`}`;
+    h += isTot || !isFinite(pp) ? "." : `; the share of crop production value went from ${askPct(sa.share)} to ${askPct(sb.share)} (${askPP(pp)}).`;
+    h += askCaveat(sb, b, many);
+    const nums = {share: sb.share, dollars: sb.dollars, total: sb.total, from_year: a, to_year: b, prev_share: sa.share, prev_dollars: sa.dollars, d_prev: isFinite(d) ? d : null, pp_prev: pp};
+    return {html: h, src: `${pl.title}, ${a}–${b}: RMA liability over ERS crop production value`, nums, view: askView(q, pl, b, band.id), unsure: false};
+  }
+  const now = askStats(agg, i, band.ks);
+  if (!(now.total > 0)) return {html: `${T}, ${year}: no crop production value in the data.`, src: ASK_SRC(pl.title, year, band.id), nums: {total: 0}, view: null, unsure: true};
+  if (i === 0) return {html: `${T}, ${esc(noun)}: <span class="big">${money(now.dollars)}</span> in ${year}${isTot ? "" : `, ${askPct(now.share)} of crop production value`}; ${year} is the first year in the data, so there is nothing earlier to compare it with.` + askCaveat(now, year, many),
+    src: ASK_SRC(pl.title, year, band.id), nums: {share: now.share, dollars: now.dollars, total: now.total}, view: askView(q, pl, year, band.id), unsure: false};
+  const prev = askStats(agg, i - 1, band.ks);
+  const avgI = [1,2,3,4,5].map(d => i - d).filter(j => j >= 0), avgS = avgI.map(j => askStats(agg, j, band.ks));
+  const avgDollars = sum(avgS.map(s => s.dollars)) / avgI.length, avgShare = sum(avgS.map(s => s.share)) / avgI.length;
+  const dPrev = gr(now.dollars, prev.dollars), dAvg = gr(now.dollars, avgDollars), ppPrev = now.share - prev.share, ppAvg = now.share - avgShare;
+  const span = `${YEARS[avgI.at(-1)]}–${YEARS[avgI[0]]}`, nAvg = avgI.length;
+  let h = `${T}, ${esc(noun)}: <span class="big">${money(now.dollars)}</span> in ${year}, `;
+  const ppTxt = !isTot && isFinite(ppPrev) ? `${askPP(ppPrev)} of crop value, to ${askPct(now.share)}` : "";
+  h += dPrev === Infinity ? `new (none in ${year - 1}${ppTxt ? "; " + ppTxt : ""})` : askChange(dPrev, String(year - 1)) + (ppTxt ? ` (${ppTxt})` : "");
+  h += `, and ${askChange(dAvg, `the ${span} average`, true)}${nAvg < 5 ? ` (only ${nAvg} year${nAvg === 1 ? "" : "s"} available)` : ""}`;
+  h += !isTot && isFinite(ppAvg) && dAvg !== Infinity ? ` (${askPP(ppAvg)}).` : ".";
+  h += askCaveat(now, year, many);
+  const nums = {share: now.share, dollars: now.dollars, total: now.total, prev_share: prev.share, prev_dollars: prev.dollars, avg_share: avgShare, avg_dollars: avgDollars,
+    d_prev: isFinite(dPrev) ? dPrev : null, d_avg: isFinite(dAvg) ? dAvg : null, pp_prev: ppPrev, pp_avg: ppAvg, n_avg: nAvg};
+  if (now.ov > 0) nums.clamped = now.ov;
+  return {html: h, src: `${pl.title}, ${year} against ${year - 1} and ${span}: RMA liability over ERS crop production value`, nums, view: askView(q, pl, year, band.id), unsure: false};
+}
+/* define: from DEFINITIONS, via ASK_ALIAS; a band with no term defines the band. */
+function askDefine(q, band) {
+  const norm = s => String(s).toLowerCase().replace(/[’']s\b/g, "").replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+  let key = null;
+  if (q.term) { const t = norm(q.term);
+    key = DEFINITIONS[t] ? t : ASK_ALIAS[t] || ASK_ALIAS[t.replace(/s$/, "")] || null;
+    if (!key) { const hit = Object.keys(ASK_ALIAS).filter(a => a.length > 2 && (t.includes(a) || a.includes(t))).sort((a, b) => b.length - a.length)[0]; if (hit) key = ASK_ALIAS[hit]; } }
+  if (!key && q.band != null) key = typeof band.id === "number" ? String(band.id) : band.id;
+  const d = key ? DEFINITIONS[key] : null;
+  if (!d) { const few = ["coverage gap", "protected share", "SCO", "ECO", "Tier 1", "projected denominator"];
+    return {html: `I have no definition for ${q.term ? `“${esc(q.term)}”` : "that"}. I can explain each of the eleven layers, the protected, supplemental, coverage-gap and unprotected groups, and terms such as ${few.map(esc).join(", ")}. Try “What is a ${few[0]}?” or “What does ${few[2]} mean?”.`, src: "the explorer's own definitions", nums: {}, view: null, unsure: true}; }
+  const asBand = /^\d+$/.test(key) ? +key : ASK_KS[key] ? key : key === "sco" ? 1 : key === "eco" ? 6 : key === "mco" ? 7 : key === "hip-wi" ? 2 : key === "pace" ? 3 : key === "fip-si" ? 4 : key === "basic coverage" ? 0 : key === "coverage gap" ? "gaps" : key === "protected share" || key === "penetration" ? "prot" : key === "crop production value" ? "tot" : null;
+  return {html: `<b>${esc(d.name)}</b>: ${esc(d.text)}`, src: "the explorer's own definitions", nums: {}, view: asBand == null ? null : {places: [], year: null, band: asBand}, unsure: false};
+}
+
+/* ---------------------------------------------------------------- show this
+   The one impure function: a view from an answer becomes the page state. */
+function askShow(view) {
+  if (!view) return;
+  const pl = (view.places || []).filter(Boolean);
+  if (pl.length) {
+    const st = pl.filter(p => p.kind === "state").map(p => +p.code).filter(c => BYCODE[c] && c !== 0);
+    const rg = pl.find(p => p.kind === "region" && (SCHEMES[p.scheme] || {})[p.region]);
+    if (st.length) { S.mode = "states"; S.states = new Set(st); }
+    else if (rg) { S.mode = "region"; S.scheme = rg.scheme; S.region = rg.region; }
+    else if (pl.some(p => p.kind === "nation")) S.mode = "us";
+  }
+  if (view.year != null && yi(+view.year) >= 0) { const y = +view.year; S.year = y; S.win = [y < S.win[0] ? y : S.win[0], y]; }
+  if (view.band != null) { const b = /^\d+$/.test(String(view.band)) ? +view.band : view.band;
+    if (typeof b === "number" && b >= 0 && b <= 10) { S.mapLayer = String(b); S.hl = b; }
+    else if (b === "prot") { S.mapLayer = "prot"; S.hl = null; } }
+  render();
+}
+
+/* ask-ai.js -- Ask the Explorer, AI-assisted: a model as interpreter, never as the source of a number
+   Authored. Concatenated by build.py into one closure, in the order its CODE list gives.
+
+   THE MODEL ONLY READS THE QUESTION. It is asked to turn free text into the same
+   query object askParse() produces (ASK_CONTRACT.md), and the engine then runs
+   that query against the embedded data exactly as it would a parsed one. So
+   every number, every caveat and every refusal still comes from this page's own
+   code; the model adds language, not figures.
+
+   OFF BY DEFAULT, AND OFFLINE PARSER FIRST. Nothing leaves the machine unless a
+   reader pastes their own Anthropic API key under "AI settings". Even then, the
+   offline parser runs first and the model is consulted only when the parser is
+   not confident or the engine refused -- the common question stays free, instant
+   and private. The reader's key is held in memory for the session; "remember on
+   this computer" is a deliberate opt-in. It is never written into a download.
+
+   WHAT IS SENT: the question, the previous query (for follow-ups), and a short
+   description of the data's vocabulary -- the layer names, the region names,
+   the year span. Not the data. */
+
+const ASK_AI = {
+  provider: "anthropic",
+  endpoint: "https://api.anthropic.com/v1/messages",
+  version: "2023-06-01",
+  model: "claude-haiku-4-5",          // the interpreter's job is small; the cheapest capable model is the right one
+  maxTokens: 400,
+  key: null,                          // in memory only
+  remember: false,
+  threshold: 0.7,                     // parser confidence below which the model is asked
+  showQuery: false,
+  storageKey: "arpc-coverage-explorer.ask-ai",
+  fake: null                          // a function (question, prev) => query, set by the test harness; no network then
+};
+
+/* -- key handling ------------------------------------------------------------ */
+function askAiLoad() {
+  try { const raw = localStorage.getItem(ASK_AI.storageKey); if (!raw) return;
+    const s = JSON.parse(raw); if (s && typeof s.key === "string" && s.key) { ASK_AI.key = s.key; ASK_AI.remember = true; }
+    if (s && typeof s.model === "string") ASK_AI.model = s.model; if (s && typeof s.showQuery === "boolean") ASK_AI.showQuery = s.showQuery;
+  } catch (e) { /* storage blocked or absent: the setting simply does not persist */ }
+}
+function askAiSave() {
+  try { if (ASK_AI.remember && ASK_AI.key) localStorage.setItem(ASK_AI.storageKey, JSON.stringify({key: ASK_AI.key, model: ASK_AI.model, showQuery: ASK_AI.showQuery}));
+        else localStorage.removeItem(ASK_AI.storageKey); } catch (e) { /* as above */ }
+}
+function askAiDisconnect() { ASK_AI.key = null; ASK_AI.remember = false; askAiSave(); }
+const askAiOn = () => !!(ASK_AI.key || ASK_AI.fake);
+
+/* -- the prompt ---------------------------------------------------------------
+   The vocabulary is spelled out so the model maps words onto THIS page's ids and
+   nothing else. Region and state lists are generated from the data at load. */
+function askAiSystem() {
+  const regions = Object.entries(SCHEMES).map(([sc, rs]) => `${sc}: ${Object.keys(rs).join("; ")}`).join("\n");
+  const states = STATES.map(g => `${g.n} (${g.c})`).join(", ");
+  return [
+    "You turn a reader's question about U.S. federal crop insurance coverage into ONE JSON object and nothing else. You never answer the question and never state a number; the page computes every number from its own data.",
+    "",
+    "The data: for every crop year " + YEARS[0] + "-" + YEARS[NY - 1] + ", for the nation and each state, crop production value split across eleven layers (zero-based index k):",
+    LONG.map((l, k) => `  ${k}: ${l}`).join("\n"),
+    "Named groups: prot = protected (basic + buy-ups: layers 0,1,2,3,4,6,7; also 'insured', 'covered', 'penetration'); supp = supplemental buy-ups (1,2,3,4,6,7); gaps = coverage gaps (5,8; 'unbought', 'insurable but not bought'); unp = unprotected (9,10); tot = crop production value (all 11).",
+    "The data has NO county detail, NO split by crop, NO premiums/indemnities/policy counts, NO acres/yields/prices. If the question needs any of those, set intent to \"unknown\" and put the offending words in unmatched.",
+    "",
+    "States, with codes: " + states + ". Nation: {\"kind\":\"nation\"}.",
+    "Regions (scheme: regions): \n" + regions,
+    "",
+    "Output schema (JSON only, no prose, no code fence):",
+    '{"intent":"value|share|rank|compare|trend|growth|define|show|unknown","band":"prot|supp|gaps|unp|tot|0-10|null","bands":[...]|null,"places":[{"kind":"nation"}|{"kind":"state","code":19}|{"kind":"region","scheme":"Farm Production Region","region":"Corn Belt"}],"year":2024|null,"years":[2015,2024]|null,"n":5,"order":"top|bottom","metric":"share|dollars|null","term":"string|null","confidence":0-1,"unmatched":[]}',
+    "Rules: 'share/percent/how much of' -> share; 'dollars/$' -> value; 'highest/lowest/top/which states' -> rank over states; 'vs/compared to' -> compare (places, or bands if two layers are named); 'trend/over time' -> trend with years; 'change/grow/since/rose/fell' -> growth (year, or years range); 'what is/define/explain' -> define with term = the reader's words; 'show/go to/map' -> show. No place -> places []. No year -> year null (the page uses its focus year). A follow-up inherits what it does not name from the previous query, which is given. Years outside " + YEARS[0] + "-" + YEARS[NY - 1] + " -> year null and the year in unmatched. Set confidence to how sure you are the question is about this data."
+  ].join("\n");
+}
+
+/* -- the call ---------------------------------------------------------------- */
+async function askAiQuery(question, prev) {
+  if (ASK_AI.fake) return ASK_AI.fake(question, prev);
+  const body = {model: ASK_AI.model, max_tokens: ASK_AI.maxTokens, system: askAiSystem(),
+    messages: [{role: "user", content: (prev ? "Previous query: " + JSON.stringify(askAiStrip(prev)) + "\n" : "") + "Question: " + question}]};
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 20000);
+  let res;
+  try {
+    res = await fetch(ASK_AI.endpoint, {method: "POST", signal: ctl.signal,
+      headers: {"content-type": "application/json", "x-api-key": ASK_AI.key, "anthropic-version": ASK_AI.version,
+                "anthropic-dangerous-direct-browser-access": "true"},
+      body: JSON.stringify(body)});
+  } finally { clearTimeout(timer); }
+  if (!res.ok) { const t = await res.text().catch(() => ""); const e = new Error(askAiHttpMessage(res.status, t)); e.status = res.status; throw e; }
+  const j = await res.json();
+  const text = (j.content || []).filter(c => c.type === "text").map(c => c.text).join("").trim();
+  const m = text.match(/\{[\s\S]*\}/); if (!m) throw new Error("The model returned no query.");
+  return JSON.parse(m[0]);
+}
+function askAiHttpMessage(status, text) {
+  if (status === 401) return "That API key was not accepted.";
+  if (status === 403) return "The key is valid but not allowed to use this model.";
+  if (status === 429) return "The AI provider is rate-limiting this key; try again in a moment.";
+  if (status === 529 || status >= 500) return "The AI provider is overloaded; try again in a moment.";
+  const m = String(text).match(/"message"\s*:\s*"([^"]{1,160})"/); return m ? m[1] : `The AI request failed (${status}).`;
+}
+const askAiStrip = q => ({intent: q.intent, band: q.band, bands: q.bands, places: q.places, year: q.year, years: q.years, n: q.n, order: q.order, metric: q.metric, term: q.term});
+
+/* -- the validator --------------------------------------------------------------
+   The model's output is untrusted. Only a query that names real places, real
+   years and real bands reaches the engine; anything else is dropped field by
+   field, so a hallucinated state cannot become a number. */
+const ASK_AI_INTENTS = new Set(["value", "share", "rank", "compare", "trend", "growth", "define", "show", "unknown"]);
+function askAiValidate(raw, prev) {
+  const q = {intent: "unknown", band: null, bands: null, places: [], year: null, years: null, n: 5, order: "top", metric: null, term: null, confidence: 0, unmatched: [], ai: true};
+  if (!raw || typeof raw !== "object") return q;
+  if (ASK_AI_INTENTS.has(raw.intent)) q.intent = raw.intent;
+  const band = b => { if (b == null) return null; if (typeof b === "string" && ["prot", "supp", "gaps", "unp", "tot"].includes(b)) return b;
+    const n = Number(b); return Number.isInteger(n) && n >= 0 && n <= 10 ? n : null; };
+  q.band = band(raw.band);
+  if (Array.isArray(raw.bands)) { const bs = raw.bands.map(band).filter(b => b != null); if (bs.length >= 2) q.bands = bs; }
+  if (Array.isArray(raw.places)) for (const p of raw.places) {
+    if (!p || typeof p !== "object") continue;
+    if (p.kind === "nation") q.places.push({kind: "nation"});
+    else if (p.kind === "state" && BYCODE[+p.code] && +p.code !== 0) q.places.push({kind: "state", code: +p.code});
+    else if (p.kind === "region" && SCHEMES[p.scheme] && SCHEMES[p.scheme][p.region]) q.places.push({kind: "region", scheme: p.scheme, region: p.region});
+    else q.unmatched.push(String(p.name || p.region || p.code || "place"));
+  }
+  const yr = y => { const n = Number(y); return Number.isInteger(n) && yi(n) >= 0 ? n : null; };
+  q.year = yr(raw.year); if (raw.year != null && q.year == null) q.unmatched.push(String(raw.year));
+  if (Array.isArray(raw.years) && raw.years.length === 2) { const a = yr(raw.years[0]), b = yr(raw.years[1]); if (a != null && b != null) q.years = a <= b ? [a, b] : [b, a]; else raw.years.forEach(y => { if (yr(y) == null) q.unmatched.push(String(y)); }); }
+  const n = Number(raw.n); if (Number.isInteger(n) && n >= 1 && n <= 50) q.n = n;
+  if (raw.order === "bottom") q.order = "bottom";
+  if (raw.metric === "share" || raw.metric === "dollars") q.metric = raw.metric;
+  if (typeof raw.term === "string" && raw.term.trim()) q.term = raw.term.trim().toLowerCase().slice(0, 80);
+  const c = Number(raw.confidence); q.confidence = isFinite(c) ? Math.max(0, Math.min(1, c)) : 0.5;
+  if (Array.isArray(raw.unmatched)) for (const w of raw.unmatched) if (typeof w === "string" && w.length < 40) q.unmatched.push(w);
+  // follow-up: inherit from the previous query what the model left empty
+  if (prev) { if (!q.places.length && !raw.places?.length) q.places = prev.places || []; if (q.band == null && raw.band == null) q.band = prev.band; if (q.year == null && raw.year == null && !q.years) q.year = prev.year; }
+  return q;
+}
+
+/* -- the seam ------------------------------------------------------------------
+   askRun's AI-aware twin: parser first; the model only when the parser was not
+   confident or the engine refused, and only if the reader connected a key. */
+async function askRunAi(question, prev) {
+  const local = askParse(question, prev), la = askAnswer(local);
+  const needs = askAiOn() && (la.unsure || local.confidence < ASK_AI.threshold);
+  if (!needs) return {q: local, a: la, ai: false};
+  let raw; try { raw = await askAiQuery(question, prev); }
+  catch (e) { return {q: local, a: Object.assign({}, la, {html: la.html + ` <span class="ainote">(AI help unavailable: ${esc(e.message)})</span>`}), ai: false, error: e.message}; }
+  const q = askAiValidate(raw, prev), a = askAnswer(q);
+  // the model's reading must beat the parser's to be used: a refusal or a lower
+  // confidence falls back to what the page understood on its own
+  if (a.unsure && !la.unsure) return {q: local, a: la, ai: false};
+  return {q, a, ai: true};
+}
+
+/* ask.js -- Ask the Explorer: the drawer, and the seam between parser and engine
+   Authored. Concatenated by build.py into one closure, in the order its CODE list gives.
+
+   No model runs at read time. askParse() (ask-parse.js) turns the question into a
+   query; askAnswer() (ask-engine.js) computes the answer from the embedded data and
+   says what it was computed from. This file owns the drawer: the conversation, the
+   suggested questions, "show this", and the hook the test harness uses. */
+
+/* The test set names its numbers by position (`share_1`, `r1`, `chg_prev`), the
+   engine names them by role (`items[0].share`, `rank[0].share`, `d_prev`). One
+   table, applied on the way out, so neither side has to know the other's names and
+   the harness reads whichever it was written for. */
+function askFlatNums(n) {
+  if (!n || typeof n !== "object") return {};
+  const out = {};
+  for (const [k, v] of Object.entries(n)) {
+    if (k === "items" && Array.isArray(v)) v.forEach((it, j) => { out[`share_${j + 1}`] = it.share; out[`dollars_${j + 1}`] = it.dollars; });
+    else if (k === "rank" && Array.isArray(v)) { v.forEach((it, j) => { out[`r${j + 1}`] = it.share; out[`r${j + 1}_dollars`] = it.dollars; }); }
+    else if (k === "n_states") out.ranked = v;
+    else if (k === "d_prev") { out.chg_prev = v; out.chg = v; }
+    else if (k === "d_avg") out.chg_avg = v;
+    else if (k === "pp_prev") { out.pp_prev = v == null ? v : v * 100; out.pp = out.pp_prev; }
+    else if (k === "pp_avg") out.pp_avg = v == null ? v : v * 100;
+    else if (k === "pp_diff") out.pp_diff = v * 100;
+    else out[k] = v;
+  }
+  // A range answer carries no 5-year average: the test set's `chg`/`pp` are the
+  // ends of the range, which the engine files under *_prev. Already copied above.
+  for (const k of Object.keys(out)) if (typeof out[k] === "number" && !isFinite(out[k])) delete out[k];
+  return out;
+}
+
+/* One conversation: the previous query gives a follow-up its missing pieces. */
+let ASK_PREV = null;
+function askRun(question) {
+  const q = askParse(question, ASK_PREV);
+  const a = askAnswer(q);
+  if (!a.unsure) ASK_PREV = q;
+  return {q, a: Object.assign({}, a, {nums: askFlatNums(a.nums)})};
+}
+
 function buildAsk() {
   const dr = document.getElementById("askDrawer"), log = document.getElementById("askLog"), btn = document.getElementById("askBtn");
   const set = open => { S.ask = open; dr.classList.toggle("open", open); document.body.classList.toggle("ask-open", open); btn.setAttribute("aria-pressed", open); if (open) document.getElementById("askIn").focus(); render(); };
   btn.onclick = () => set(!S.ask); document.getElementById("askX").onclick = () => set(false);
   document.addEventListener("keydown", e => { if (e.key.toLowerCase() === "a" && !/input|select|textarea/i.test(document.activeElement.tagName) && !e.metaKey && !e.ctrlKey) set(!S.ask); if (e.key === "Escape" && S.ask) set(false); });
-  const ask = q => { const r = answer(q); log.insertAdjacentHTML("beforeend", `<div class="q">${esc(q)}</div><div class="a">${r.a}</div>${r.src ? `<div class="src">${r.src}</div>` : ""}`); log.scrollTop = log.scrollHeight; };
-  document.getElementById("askForm").onsubmit = e => { e.preventDefault(); const v = document.getElementById("askIn").value.trim(); if (v) ask(v); document.getElementById("askIn").value = ""; };
-  log.innerHTML = `<p>Ask about a place, a year and a layer. Try:</p>`;
-  for (const q of ["What share of Iowa's 2024 crop value was protected?", "Which states had the highest SCO share in 2025?", "How did ECO change in 2025?", "Where are coverage gaps largest in 2025?", "Lowest protected share in 2025"]) {
-    const c = html(`<button class="qchip" type="button">${q}</button>`); c.onclick = () => ask(q); log.appendChild(c); }
-}
 
+  const ask = async question => {
+    const pending = html(`<div class="turn pending"><div class="q">${esc(question)}</div><div class="a"><span class="mut">…</span></div></div>`);
+    log.appendChild(pending); log.scrollTop = log.scrollHeight;
+    const r = await askRunAi(question, ASK_PREV), a = r.a, q = r.q;
+    if (!a.unsure) ASK_PREV = q;
+    pending.remove();
+    const badge = r.ai ? `<span class="aibadge" title="The AI read your question; every number is computed by this page from its data">AI-assisted</span>` : "";
+    const node = html(`<div class="turn"><div class="q">${esc(question)}</div><div class="a">${a.html} ${badge}</div>${a.src ? `<div class="src">${esc(a.src)}</div>` : ""}${ASK_AI.showQuery ? `<div class="src qry">query: ${esc(JSON.stringify(askAiStrip(q)))}</div>` : ""}</div>`);
+    // "Show this" sets the page to what the answer is about: the reader asked in
+    // words and gets the figure, the map and the growth table redrawn for it.
+    if (a.view && !a.unsure) { const n = (a.view.places || []).filter(p => p.kind === "state").length;
+      const b = html(`<button class="qchip show" type="button">${n > 1 ? `Show these ${n} states together` : "Show this on the page"}</button>`); b.onclick = () => askShow(a.view); node.querySelector(".a").after(b); }
+    if (a.show && a.view) askShow(a.view);
+    log.appendChild(node); log.scrollTop = log.scrollHeight;
+  };
+  document.getElementById("askForm").onsubmit = e => { e.preventDefault(); const v = document.getElementById("askIn").value.trim(); if (v) ask(v); document.getElementById("askIn").value = ""; };
+
+  // AI settings: off until the reader connects a key. Lives in the drawer head.
+  askAiLoad();
+  const aiBtn = html(`<button class="aibtn" type="button" title="AI settings"></button>`);
+  document.querySelector("#askDrawer .hd .x").before(aiBtn);
+  const paintAi = () => { aiBtn.textContent = askAiOn() ? "AI: on" : "AI: off"; aiBtn.classList.toggle("on", askAiOn()); };
+  aiBtn.onclick = () => { const old = document.getElementById("aiPanel"); if (old) { old.remove(); return; }
+    const p = html(`<div id="aiPanel">
+      <h3>AI settings</h3>
+      <p>Optional. With your own Anthropic API key, a model reads questions this page cannot parse on its own. <b>The model never computes a number</b>: it only turns your words into a query, and the page answers from its data as usual.</p>
+      <p class="mut">What is sent: your question, the previous question's reading, and the names of the layers, states, regions and years. Not the data, not your selection. It goes to Anthropic under your key and account.</p>
+      <label>Anthropic API key <input type="password" id="aiKey" value="${esc(ASK_AI.key || "")}" placeholder="sk-ant-…" autocomplete="off" spellcheck="false"></label>
+      <label>Model <select id="aiModel">${["claude-haiku-4-5", "claude-sonnet-4-5"].map(m => `<option ${ASK_AI.model === m ? "selected" : ""}>${m}</option>`).join("")}</select></label>
+      <label class="sw"><input type="checkbox" id="aiRemember" ${ASK_AI.remember ? "checked" : ""}> Remember the key on this computer <span class="mut">(not on a shared one)</span></label>
+      <label class="sw"><input type="checkbox" id="aiShow" ${ASK_AI.showQuery ? "checked" : ""}> Show the query under each answer</label>
+      <div class="row"><button class="pillbtn" type="button" id="aiSave">Connect</button><button class="pillbtn" type="button" id="aiOff">Disconnect</button><button class="pillbtn" type="button" id="aiClose">Close</button></div>
+      <p class="mut small">The key stays in your browser and is sent only to api.anthropic.com. It is never put in a download or shared with NDSU.</p></div>`);
+    p.querySelector("#aiSave").onclick = () => { ASK_AI.key = p.querySelector("#aiKey").value.trim() || null; ASK_AI.model = p.querySelector("#aiModel").value;
+      ASK_AI.remember = p.querySelector("#aiRemember").checked; ASK_AI.showQuery = p.querySelector("#aiShow").checked; askAiSave(); paintAi(); p.remove(); };
+    p.querySelector("#aiOff").onclick = () => { askAiDisconnect(); paintAi(); p.remove(); };
+    p.querySelector("#aiClose").onclick = () => p.remove();
+    document.querySelector("#askDrawer .hd").after(p); p.querySelector("#aiKey").focus(); };
+  paintAi();
+
+  log.innerHTML = `<p>Ask about a place, a year and a layer, in your own words. Follow-ups keep the context (“and in 2020?”, “what about Kansas?”). Try:</p>`;
+  for (const q of ["What share of Iowa's 2024 crop value was protected?", "Which states had the highest SCO share in 2025?", "Iowa vs Kansas",
+                   "How did ECO change since 2021?", "Where are coverage gaps largest?", "What is a coverage gap?"]) {
+    const c = html(`<button class="qchip" type="button">${esc(q)}</button>`); c.onclick = () => ask(q); log.appendChild(c); }
+
+  // The harness drives askParse/askAnswer directly. Exposed only when the file is
+  // opened with #test, so an ordinary reader's page keeps everything in its closure.
+  if (location.hash === "#test") window.__ask = {askParse, askAnswer, askRun, askRunAi, askAiValidate, askNormalize, askFlatNums, ASK_AI, reset: () => { ASK_PREV = null; }};
+}
 
 /* boot.js -- DOM kit, the toggle bar, the map header, tabs, Overview and Help, and render()
    Authored. Concatenated by build.py into one closure, in the order its CODE list gives. */
