@@ -22,20 +22,40 @@
 # white or working papers.
 # ==============================================================================
 
+- title: "Trends and Outlook for Supplemental Crop Insurance in the United States, 2025"
+  authors: "Tsiboe, F., H. Monaco, H. Zhao, J. Ifft, R. Chakravorty, D. Turner, and S. Arita"
+  year: 2026
+  type: "ARPC Report"
+  interactive: "arpc-report-2026-07"
+  pdf: "/publications/arpc-report-2026-07/arpc-report-2026-07.pdf"
+  doi: "10.22004/ag.econ.412822"
+
 - title: "The Anatomy of Crop Insurance Policies and What U.S. Producers Chose, 2025"
   year: 2026
   type: "ARPC Report"
   site: "https://www.arpc-ndsu.com/publication/the-anatomy-of-crop-insurance-policies-and-what-u.s.producers-chose-2025"
+  authors: "Tsiboe, F."
+  interactive: "arpc-report-2026-06"
+  pdf: "/publications/arpc-report-2026-06/arpc-report-2026-06.pdf"
+  doi: "10.22004/ag.econ.404916"
 
 - title: "Crop Insurance Penetration in the United States, 2025"
   year: 2026
   type: "ARPC Report"
   site: "https://www.arpc-ndsu.com/publication/crop-insurance-penetration-in-the-united-states-2025"
+  authors: "Tsiboe, F., H. Zhao, D. Turner, R. Chakravorty, W. Davis, and S. Steinbach"
+  interactive: "arpc-report-2026-04"
+  pdf: "/publications/arpc-report-2026-04/arpc-report-2026-04.pdf"
+  doi: "10.22004/ag.econ.404304"
 
 - title: "Size and Growth of the United States Crop Insurance Portfolio, 2025"
   year: 2026
   type: "ARPC Report"
   site: "https://www.arpc-ndsu.com/publication/size-and-growth-of-the-united-states-crop-insurance-portfolio-2025"
+  authors: "Tsiboe, F., R. Chakravorty, H. Zhao, D. Turner, and S. Steinbach"
+  interactive: "arpc-report-2026-01"
+  pdf: "/publications/arpc-report-2026-01/arpc-report-2026-01.pdf"
+  doi: "10.22004/ag.econ.401338"
 
 - title: "A Technical Manual for Stochastic Simulation of Crop Yield, Price, and Policy Outcomes"
   year: 2026
